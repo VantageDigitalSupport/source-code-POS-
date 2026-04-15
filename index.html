@@ -998,207 +998,1888 @@
     <div id="view-leaves" class="view">
       <div class="page-header">
         <h1>Leave Requests</h1>
-        <p>Manage staff time off and approve or reject requests</p>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0;flex:1;min-width:240px">
-          <div class="stat-card gold"><div class="label">Total</div><div class="value" id="leaveTotalCount">—</div></div>
-          <div class="stat-card red"><div class="label">This Month</div><div class="value" id="leaveMonthCount">—</div></div>
-          <div class="stat-card blue"><div class="label">Upcoming</div><div class="value" id="leaveUpcomingCount">—</div></div>
-        </div>
-        <button class="btn btn-gold btn-sm" style="flex-shrink:0" onclick="openAddLeave()">+ Add Leave</button>
-      </div>
-      <div class="info-box">
-        <strong>Approval System:</strong> Pending requests can be approved or rejected.
-        Approved leaves auto-mark attendance as absent and warn about affected appointments.
-      </div>
+        <p>Manage and approve staff leave requests</p>
+  </div>
 
-      <!-- Filter tabs -->
-      <div class="tab-bar" style="margin-bottom:16px">
-        <button class="tab-btn active" id="leaveTabAll" onclick="switchLeaveTab('all')">All</button>
-        <button class="tab-btn" id="leaveTabPending" onclick="switchLeaveTab('pending')">⏳ Pending</button>
-        <button class="tab-btn" id="leaveTabApproved" onclick="switchLeaveTab('approved')">✅ Approved</button>
-        <button class="tab-btn" id="leaveTabRejected" onclick="switchLeaveTab('rejected')">❌ Rejected</button>
-      </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="leaveTab1" onclick="switchLeaveTab('pending')">⏳ Pending</button>
+    <button class="tab-btn" id="leaveTab2" onclick="switchLeaveTab('all')">📋 All Requests</button>
+    <button class="tab-btn" id="leaveTab3" onclick="switchLeaveTab('submit')">+ Submit Leave</button>
+  </div>
 
-      <div class="card">
-        <div class="card-header">
-          <h3>Leave Records</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadLeaves()">↻ Refresh</button>
-        </div>
-        <div id="leaveList" style="padding:14px">
-          <div class="empty-state">Loading…</div>
-        </div>
+  <div id="leaveTabPending">
+    <div id="leavePendingList"><div class="empty-state">Loading…</div></div>
+  </div>
+
+  <div id="leaveTabAll" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <h3>All Leave Requests</h3>
+        <button class="btn btn-ghost btn-sm" onclick="loadLeaves()">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Staff</th><th>Date</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="leaveAllBody"></tbody>
+        </table>
       </div>
     </div>
+  </div>
 
-    <!-- ══════════════════════════════════════
-         SETTINGS
-    ══════════════════════════════════════ -->
-    <div id="view-settings" class="view">
-      <div class="page-header">
-        <h1>Settings</h1>
-        <p>Manage your account, salon hours and working days</p>
-      </div>
-      <div class="tab-bar" style="margin-bottom:24px">
-        <button class="tab-btn active" id="setTab1" onclick="switchSettingsTab('account')">🔐 Account</button>
-        <button class="tab-btn" id="setTab2" onclick="switchSettingsTab('hours')">🕐 Business Hours</button>
-        <button class="tab-btn" id="setTab3" onclick="switchSettingsTab('workingdays')">📅 Working Days</button>
-      </div>
-      <div id="setTabAccount">
-        <div class="card" style="max-width:440px">
-          <div class="card-header"><h3>Change Password</h3></div>
-          <div class="card-body">
-            <label class="field-label">Username</label>
-            <input id="cpUser" class="field" type="text" placeholder="Your username" />
-            <label class="field-label">New Password</label>
-            <input id="cpPass" class="field" type="password" placeholder="New password" />
-            <label class="field-label">Confirm Password</label>
-            <input id="cpConfirm" class="field" type="password" placeholder="Confirm new password" />
-            <button class="btn btn-gold btn-full" onclick="changePassword()">Update Password</button>
-          </div>
-        </div>
-      </div>
-      <div id="setTabHours" style="display:none">
-        <div class="card" style="max-width:500px">
-          <div class="card-header"><h3>Appointment Buffer</h3></div>
-          <div class="card-body">
-            <div class="info-box">
-              <strong>Buffer time</strong> is added after every appointment automatically.
-            </div>
-            <label class="field-label">Buffer Duration (minutes)</label>
-            <input id="settingBuffer" class="field" type="number" min="0" max="60" placeholder="15" style="max-width:160px" />
-            <button class="btn btn-gold" onclick="saveBuffer()">Save Buffer</button>
-          </div>
-        </div>
-      </div>
-      <div id="setTabWorkingDays" style="display:none">
-        <div class="card" style="margin-bottom:20px">
-          <div class="card-header">
-            <h3>📆 Regular Weekly Schedule</h3>
-            <button class="btn btn-ghost btn-sm" onclick="loadSalonSchedule()">↻ Refresh</button>
-          </div>
-          <div class="card-body">
-            <div class="info-box">
-              <strong>How it works:</strong> Set your salon's normal opening hours.
-              Editing <strong>Monday</strong> auto-fills Tuesday → Friday.
-            </div>
-            <div id="weeklyScheduleTable"><div class="empty-state">Loading…</div></div>
-            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-              <button class="btn btn-gold" onclick="saveSalonSchedule()">💾 Save Weekly Schedule</button>
-              <button class="btn btn-ghost" onclick="loadSalonSchedule()">Reset</button>
-            </div>
-          </div>
-        </div>
-        <div class="card" style="margin-bottom:20px">
-          <div class="card-header">
-            <h3>⭐ Special Day Overrides</h3>
-            <button class="btn btn-gold btn-sm" onclick="openAddSpecialDay()">+ Add Special Day</button>
-          </div>
-          <div class="card-body">
-            <div class="info-box">
-              <strong>Use this for exceptions</strong> — open on a normally closed day or closed on a normally open day.
-            </div>
-            <div id="specialDaysList"><div class="empty-state">Loading…</div></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <h3>👥 Staff Working Days</h3>
-            <button class="btn btn-ghost btn-sm" onclick="loadStaffScheduleSettings()">↻ Refresh</button>
-          </div>
-          <div class="card-body">
-            <div class="info-box">
-              <strong>Set each staff member's regular working days.</strong>
-              Grey days with <strong>✕</strong> mean the salon is closed.
-            </div>
-            <div id="staffScheduleSettings"><div class="empty-state">Loading…</div></div>
-          </div>
-        </div>
+  <div id="leaveTabSubmit" style="display:none">
+    <div class="card" style="max-width:480px">
+      <div class="card-body">
+        <label class="field-label">Staff Member</label>
+        <select id="leaveStaffSelect" class="field"></select>
+        <label class="field-label">Leave Date</label>
+        <input type="date" id="leaveDate" class="field" />
+        <label class="field-label">Reason</label>
+        <textarea id="leaveReason" class="field" placeholder="Reason for leave…" rows="3"></textarea>
+        <button class="btn btn-gold btn-full" onclick="submitLeave()">Submit Leave Request</button>
       </div>
     </div>
-
-    <!-- ══════════════════════════════════════
-         EMPLOYEE DASHBOARD
-    ══════════════════════════════════════ -->
-    <div id="view-emp-dashboard" class="view">
-      <div class="emp-welcome">
-        <h2>Good <span id="empGreeting">day</span>, <span id="empName">—</span>! 👋</h2>
-        <p id="empRole" style="color:var(--muted)">Staff Member</p>
-      </div>
-      <div class="two-col" style="gap:16px;margin-bottom:20px">
-        <button class="emp-clock-btn emp-clock-in" id="empClockInBtn" onclick="empClockIn()">
-          ✓ Clock In
-        </button>
-        <button class="emp-clock-btn emp-clock-out" id="empClockOutBtn" onclick="empClockOut()" style="display:none">
-          ✗ Clock Out
-        </button>
-      </div>
-      <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:20px">
-        <div class="stat-card green"><div class="label">Today's Appts</div><div class="value" id="empStatAppts">—</div></div>
-        <div class="stat-card gold"><div class="label">This Month</div><div class="value" id="empStatMonth">—</div></div>
-        <div class="stat-card blue"><div class="label">Attendance %</div><div class="value" id="empStatAtt">—</div></div>
-        <div class="stat-card purple"><div class="label">Leave Status</div><div class="value" id="empStatLeave" style="font-size:14px">—</div></div>
-      </div>
-      <div class="emp-section">
-        <h3>Today's Appointments</h3>
-        <div id="empTodayAppts"><div class="empty-state">Loading…</div></div>
-      </div>
-      <div class="emp-section">
-        <h3>Recent Leave Requests</h3>
-        <div id="empLeaveList"><div class="empty-state">Loading…</div></div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════
-         EMPLOYEE — MY SCHEDULE
-    ══════════════════════════════════════ -->
-    <div id="view-emp-schedule" class="view">
-      <div class="page-header">
-        <h1>My Schedule</h1>
-        <p>Your assigned working days</p>
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>Weekly Schedule</h3></div>
-        <div id="empScheduleGrid" style="padding:16px">
-          <div class="empty-state">Loading…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════
-         EMPLOYEE — MY APPOINTMENTS
-    ══════════════════════════════════════ -->
-    <div id="view-emp-appointments" class="view">
-      <div class="page-header">
-        <h1>My Appointments</h1>
-        <p>Your assigned bookings</p>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-        <input type="date" id="empApptDate" class="field" style="margin-bottom:0;width:170px" onchange="loadEmpAppointments()" />
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('empApptDate').value=todayStr();loadEmpAppointments()">Today</button>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('empApptDate').value='';loadEmpAppointments()">All</button>
-      </div>
-      <div id="empApptList"><div class="empty-state">Loading…</div></div>
-    </div>
-
-    <!-- ══════════════════════════════════════
-         EMPLOYEE — MY LEAVE REQUESTS
-    ══════════════════════════════════════ -->
-    <div id="view-emp-leaves" class="view">
-      <div class="page-header">
-        <h1>My Leave Requests</h1>
-        <p>Submit and track your leave requests</p>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-        <button class="btn btn-gold btn-sm" onclick="openEmpLeaveModal()">+ Request Leave</button>
-      </div>
-      <div class="info-box">
-        <strong>How it works:</strong> Submit a leave request and your manager will approve or reject it.
-        You'll see the status updated here.
-      </div>
-      <div id="empLeaveListFull"><div class="empty-state">Loading…</div></div>
-    </div>
-
-  </main>
+  </div>
 </div>
+
+<!-- ══════════════════════════════════════
+     SETTINGS
+══════════════════════════════════════ -->
+<div id="view-settings" class="view">
+  <div class="page-header"><h1>Settings</h1><p>Configure salon schedule, specialties, and accounts</p></div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="settingTab1" onclick="switchSettingTab('schedule')">🗓 Working Days</button>
+    <button class="tab-btn" id="settingTab2" onclick="switchSettingTab('special')">⭐ Special Days</button>
+    <button class="tab-btn" id="settingTab3" onclick="switchSettingTab('specialty')">✦ Specialties</button>
+    <button class="tab-btn" id="settingTab4" onclick="switchSettingTab('accounts')">👤 Staff Accounts</button>
+    <button class="tab-btn" id="settingTab5" onclick="switchSettingTab('password')">🔒 Password</button>
+  </div>
+
+  <div id="settingTabSchedule">
+    <div class="card" style="max-width:640px">
+      <div class="card-header"><h3>Salon Working Hours</h3></div>
+      <div class="card-body">
+        <div id="weeklyScheduleForm"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button class="btn btn-gold" onclick="saveWeeklySchedule()">Save Working Hours</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingTabSpecial" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start" class="profile-cols">
+      <div class="card">
+        <div class="card-header"><h3>Add Special Day</h3></div>
+        <div class="card-body">
+          <label class="field-label">Date</label>
+          <input type="date" id="specialDate" class="field" />
+          <label class="field-label">Status</label>
+          <select id="specialIsOpen" class="field" onchange="toggleSpecialHours()">
+            <option value="true">Open (Custom Hours)</option>
+            <option value="false">Closed</option>
+          </select>
+          <div id="specialHoursFields">
+            <label class="field-label">Open Time</label>
+            <input type="time" id="specialOpenTime" class="field" value="09:00" />
+            <label class="field-label">Close Time</label>
+            <input type="time" id="specialCloseTime" class="field" value="17:00" />
+            <label class="field-label">Staff Working (leave empty = all)</label>
+            <div id="specialStaffCheckboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px"></div>
+          </div>
+          <label class="field-label">Note (optional)</label>
+          <input type="text" id="specialNote" class="field" placeholder="e.g. Holiday hours…" />
+          <button class="btn btn-gold btn-full" onclick="addSpecialDay()">Add Special Day</button>
+        </div>
+      </div>
+      <div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:14px 18px">
+          <h3 style="font-size:14px;font-weight:600">Upcoming Special Days</h3>
+        </div>
+        <div id="specialDaysList" style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:12px">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingTabSpecialty" style="display:none">
+    <div class="card" style="max-width:560px">
+      <div class="card-header"><h3>Role → Service Category Mapping</h3></div>
+      <div class="card-body">
+        <div class="info-box"><strong>Tip:</strong> Comma-separated categories per role. Use <strong>ALL</strong> for all-rounders.</div>
+        <div id="specialtyMappingForm"></div>
+        <div style="margin-top:16px">
+          <label class="field-label">Slot Buffer (minutes)</label>
+          <input type="number" id="slotBufferInput" class="field" value="15" min="0" max="60" />
+          <p style="font-size:12px;color:var(--muted)">Added to total duration when calculating slot length.</p>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="addSpecialtyRole()">+ Add Role</button>
+          <button class="btn btn-gold" onclick="saveSpecialtySettings()">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingTabAccounts" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <h3>Staff Login Accounts</h3>
+        <button class="btn btn-gold btn-sm" onclick="openCreateAccountModal()">+ Create Account</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Staff Member</th><th>Username</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody id="accountsBody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingTabPassword" style="display:none">
+    <div class="card" style="max-width:420px">
+      <div class="card-header"><h3>Change Password</h3></div>
+      <div class="card-body">
+        <label class="field-label">New Password</label>
+        <input type="password" id="newPassword" class="field" placeholder="Enter new password" />
+        <label class="field-label">Confirm Password</label>
+        <input type="password" id="confirmPassword" class="field" placeholder="Confirm new password" />
+        <button class="btn btn-gold btn-full" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     EMPLOYEE VIEWS
+══════════════════════════════════════ -->
+
+<!-- EMP DASHBOARD -->
+<div id="view-emp-dashboard" class="view">
+  <div class="emp-welcome">
+    <h2 id="empWelcomeName">Good morning! 👋</h2>
+    <p id="empWelcomeDate"></p>
+  </div>
+  <div class="two-col" style="margin-bottom:20px">
+    <div>
+      <button class="emp-clock-btn emp-clock-in" id="empClockBtn" onclick="toggleClock()">⊕ Clock In</button>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:6px" id="empClockStatus">Not clocked in today</p>
+    </div>
+    <div class="stat-card blue">
+      <div class="label">Today's Appointments</div>
+      <div class="value" id="empStatAppts">—</div>
+    </div>
+  </div>
+  <div class="emp-section">
+    <h3>Today's Appointments</h3>
+    <div id="empTodayAppts"><div class="empty-state">Loading…</div></div>
+  </div>
+  <div class="emp-section">
+    <h3>My Leave Requests</h3>
+    <div id="empLeaveStatus"><div class="empty-state">Loading…</div></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="showView('emp-leaves');closeSidebar()">+ Submit Leave</button>
+  </div>
+</div>
+
+<!-- EMP SCHEDULE -->
+<div id="view-emp-schedule" class="view">
+  <div class="page-header"><h1>My Schedule</h1><p>Your weekly working days</p></div>
+  <div class="card">
+    <div class="card-header"><h3>Weekly Schedule</h3></div>
+    <div class="card-body" id="empScheduleGrid"></div>
+  </div>
+</div>
+
+<!-- EMP APPOINTMENTS -->
+<div id="view-emp-appointments" class="view">
+  <div class="page-header"><h1>My Appointments</h1><p>Appointments assigned to you</p></div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <input type="date" id="empApptDate" class="field" style="margin-bottom:0;width:180px" onchange="loadEmpAppointments()" />
+    <button class="btn btn-ghost btn-sm" onclick="empSetToday()">Today</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadEmpAppointments()">↻ Refresh</button>
+  </div>
+  <div id="empApptList"><div class="empty-state">Loading…</div></div>
+</div>
+
+<!-- EMP LEAVES -->
+<div id="view-emp-leaves" class="view">
+  <div class="page-header"><h1>Leave Requests</h1><p>Submit and track your leave requests</p></div>
+  <div class="two-col" style="align-items:start">
+    <div class="card">
+      <div class="card-header"><h3>Submit Request</h3></div>
+      <div class="card-body">
+        <label class="field-label">Leave Date</label>
+        <input type="date" id="empLeaveDate" class="field" />
+        <label class="field-label">Reason</label>
+        <textarea id="empLeaveReason" class="field" placeholder="Reason for leave…" rows="3"></textarea>
+        <button class="btn btn-gold btn-full" onclick="submitEmpLeave()">Submit Request</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>My Leave History</h3></div>
+      <div id="empLeaveHistory" style="padding:12px"><div class="empty-state">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ══════════════════════════════════════
+     MODALS
+══════════════════════════════════════ -->
+
+<!-- ADD/EDIT PRODUCT -->
+<div class="overlay" id="productOverlay">
+  <div class="modal">
+    <h3 id="productModalTitle">Add Product</h3>
+    <input type="hidden" id="productEditId" />
+    <label class="field-label">Product Name</label>
+    <input id="productName" class="field" placeholder="e.g. Hair Colour Kit" />
+    <div class="two-col">
+      <div>
+        <label class="field-label">Price</label>
+        <input id="productPrice" class="field" type="number" step="0.01" min="0" placeholder="0.00" />
+      </div>
+      <div>
+        <label class="field-label">Stock Quantity</label>
+        <input id="productStock" class="field" type="number" min="0" placeholder="0" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeProductModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT SERVICE -->
+<div class="overlay" id="serviceOverlay">
+  <div class="modal">
+    <h3 id="serviceModalTitle">Add Service</h3>
+    <input type="hidden" id="serviceEditId" />
+    <label class="field-label">Service Name</label>
+    <input id="serviceName" class="field" placeholder="e.g. Balayage" />
+    <label class="field-label">Category</label>
+    <input id="serviceCategory" class="field" placeholder="e.g. Hair Colouring" />
+    <label class="field-label">Description</label>
+    <textarea id="serviceDesc" class="field" rows="2" placeholder="Brief description…"></textarea>
+    <div class="two-col">
+      <div>
+        <label class="field-label">Duration (mins)</label>
+        <input id="serviceDuration" class="field" type="number" min="5" step="5" placeholder="60" />
+      </div>
+      <div>
+        <label class="field-label">Price</label>
+        <input id="servicePrice" class="field" type="number" step="0.01" min="0" placeholder="0.00" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeServiceModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveService()">Save Service</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT STAFF -->
+<div class="overlay" id="staffOverlay">
+  <div class="modal">
+    <h3 id="staffModalTitle">Add Staff Member</h3>
+    <input type="hidden" id="staffEditId" />
+    <label class="field-label">Full Name</label>
+    <input id="staffName" class="field" placeholder="e.g. Sarah Johnson" />
+    <div class="two-col">
+      <div>
+        <label class="field-label">Role</label>
+        <input id="staffRole" class="field" placeholder="e.g. Stylist" />
+      </div>
+      <div>
+        <label class="field-label">Phone</label>
+        <input id="staffPhone" class="field" placeholder="+94 77 000 0000" />
+      </div>
+    </div>
+    <label class="field-label">Email</label>
+    <input id="staffEmail" class="field" type="email" placeholder="staff@salon.com" />
+    <label class="field-label">Specialties (comma-separated or ALL)</label>
+    <input id="staffSpecialties" class="field" placeholder="Hair Colouring, Hair Cutting" />
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeStaffModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveStaff()">Save Staff</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT CUSTOMER -->
+<div class="overlay" id="customerOverlay">
+  <div class="modal" style="max-width:440px">
+    <h3 id="customerModalTitle">Add Customer</h3>
+    <input type="hidden" id="customerEditId" />
+    <label class="field-label">Full Name</label>
+    <input id="customerName" class="field" placeholder="e.g. Jane Perera" />
+    <div class="two-col">
+      <div>
+        <label class="field-label">Phone</label>
+        <input id="customerPhone" class="field" placeholder="+94 77 000 0000" />
+      </div>
+      <div>
+        <label class="field-label">Email</label>
+        <input id="customerEmail" class="field" type="email" placeholder="jane@email.com" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCustomerModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveCustomer()">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD APPOINTMENT -->
+<div class="overlay" id="apptOverlay">
+  <div class="modal" style="max-width:560px">
+    <h3>New Appointment</h3>
+    <label class="field-label">Customer Type</label>
+    <select id="apptCustomerType" class="field" onchange="toggleApptCustomerType()">
+      <option value="registered">Registered Customer</option>
+      <option value="walkin">Walk-in Guest</option>
+    </select>
+    <div id="apptRegisteredFields">
+      <label class="field-label">Customer</label>
+      <select id="apptCustomerSelect" class="field"><option value="">Select customer…</option></select>
+    </div>
+    <div id="apptWalkinFields" style="display:none">
+      <label class="field-label">Guest Name</label>
+      <input id="apptGuestName" class="field" placeholder="Guest name" />
+      <div class="two-col">
+        <div>
+          <label class="field-label">Phone</label>
+          <input id="apptGuestPhone" class="field" placeholder="+94 77 000 0000" />
+        </div>
+        <div>
+          <label class="field-label">Email</label>
+          <input id="apptGuestEmail" class="field" type="email" placeholder="guest@email.com" />
+        </div>
+      </div>
+    </div>
+    <label class="field-label">Services</label>
+    <div id="apptServiceCheckboxes" class="svc-checkbox-grid"></div>
+    <label class="field-label">Staff (optional)</label>
+    <select id="apptStaffSelect" class="field"><option value="">Auto-assign</option></select>
+    <div class="two-col">
+      <div>
+        <label class="field-label">Date</label>
+        <input type="date" id="apptDate" class="field" onchange="loadApptSlots()" />
+      </div>
+      <div>
+        <label class="field-label">Notes</label>
+        <input id="apptNotes" class="field" placeholder="Special requests…" />
+      </div>
+    </div>
+    <label class="field-label">Available Slots <span id="apptSlotInfo" style="color:var(--muted);font-size:11px"></span></label>
+    <div id="apptSlotsGrid" class="slots-grid"></div>
+    <input type="hidden" id="apptSelectedSlot" />
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeApptModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveAppointment()">Book Appointment</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPOINTMENT DETAIL -->
+<div class="overlay" id="apptDetailOverlay">
+  <div class="modal" style="max-width:540px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <h3 id="detailRef" style="font-family:var(--mono);color:var(--gold)">BK-XXXXX</h3>
+        <div id="detailStatusBadge" style="margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="detailActionBtns"></div>
+    </div>
+    <div class="two-col" style="margin-bottom:16px">
+      <div>
+        <div class="field-label" style="margin-bottom:4px">Customer</div>
+        <div id="detailCustomer" style="font-weight:600"></div>
+      </div>
+      <div>
+        <div class="field-label" style="margin-bottom:4px">Staff</div>
+        <div id="detailStaff" style="font-weight:600"></div>
+      </div>
+      <div>
+        <div class="field-label" style="margin-bottom:4px">Date & Time</div>
+        <div id="detailDateTime" style="font-family:var(--mono)"></div>
+      </div>
+      <div>
+        <div class="field-label" style="margin-bottom:4px">Duration</div>
+        <div id="detailDuration"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="field-label" style="margin-bottom:6px">Services</div>
+      <div id="detailServices"></div>
+    </div>
+    <div id="detailNoteDisplay" style="margin-bottom:16px;font-size:13px;color:var(--text-sub);font-style:italic"></div>
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div class="field-label" style="margin-bottom:8px">Update Status</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="detailStatusBtns"></div>
+      <div style="margin-top:12px">
+        <label class="field-label">Reassign Staff</label>
+        <select id="detailStaffSelect" class="field"></select>
+      </div>
+      <div>
+        <label class="field-label">Notes</label>
+        <input id="detailNotesInput" class="field" placeholder="Update notes…" />
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="closeApptDetail()">Close</button>
+        <button class="btn btn-gold" onclick="saveApptChanges()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO-SALE CONFIRMATION -->
+<div class="overlay" id="autoSaleOverlay">
+  <div class="modal" style="max-width:440px">
+    <h3>💰 Confirm Sale</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Appointment completed. Create a sale record for these services?</p>
+    <div id="autoSaleBreakdown" style="background:var(--hover);border-radius:var(--radius);padding:14px;margin-bottom:16px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:15px;padding:0 2px">
+      <span>Total</span>
+      <span id="autoSaleTotal" style="color:var(--gold);font-family:var(--mono)">$0.00</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAutoSale()">Skip</button>
+      <button class="btn btn-gold" onclick="confirmAutoSale()">✓ Confirm Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE STAFF ACCOUNT -->
+<div class="overlay" id="createAccountOverlay">
+  <div class="modal" style="max-width:440px">
+    <h3>Create Staff Login</h3>
+    <label class="field-label">Link to Staff Member</label>
+    <select id="accountStaffSelect" class="field"></select>
+    <label class="field-label">Username</label>
+    <input id="accountUsername" class="field" placeholder="e.g. sarah.johnson" />
+    <label class="field-label">Password</label>
+    <input id="accountPassword" class="field" type="password" placeholder="Set a password" />
+    <label class="field-label">Role</label>
+    <select id="accountRole" class="field">
+      <option value="staff">Staff</option>
+      <option value="admin">Admin</option>
+    </select>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCreateAccountModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="createStaffAccount()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM LOGOUT -->
+<div class="overlay" id="logoutOverlay">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <h3 style="margin-bottom:8px">Sign Out?</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px">You'll need to log back in to continue.</p>
+    <div class="modal-footer" style="justify-content:center">
+      <button class="btn btn-ghost" onclick="closeLogoutModal()">Stay</button>
+      <button class="btn btn-danger" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// GLOBALS
+// ══════════════════════════════════════════════
+let TOKEN = '';
+let CURRENT_ROLE = 'admin';
+let CURRENT_STAFF_ID = null;
+let CURRENT_USERNAME = '';
+let _salonClosedDays = new Set();
+let _autoSalePendingApptId = null;
+let _autoSaleServices = [];
+let _autoSaleCustomerId = null;
+let _salesDateFilter = null;
+
+// ── API helper ────────────────────────────────
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status === 401) { logout(); return null; }
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(json.detail || 'Request failed');
+  return json;
+}
+
+// ── Toast ──────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 3200);
+}
+
+// ── Theme ──────────────────────────────────────
+function toggleTheme() {
+  const d = document.documentElement;
+  d.dataset.theme = d.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('unipos-theme', d.dataset.theme);
+}
+(function () {
+  const saved = localStorage.getItem('unipos-theme');
+  if (saved) {
+    document.documentElement.dataset.theme = saved;
+    if (saved === 'light') document.getElementById('themeToggle').checked = true;
+  }
+})();
+
+// ── Sidebar ────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+// ── showView ───────────────────────────────────
+const VIEW_TITLES = {
+  'dashboard':'Dashboard','appointments':'Appointments','sales':'New Sale',
+  'history':'Sales History','inventory':'Inventory','services':'Services',
+  'customers':'Customers','customer-profile':'Customer Profile','staff':'Staff',
+  'attendance':'Attendance','schedule':'Schedule','leaves':'Leave Requests',
+  'settings':'Settings','emp-dashboard':'My Dashboard','emp-schedule':'My Schedule',
+  'emp-appointments':'My Appointments','emp-leaves':'My Leave'
+};
+const VIEW_LOADERS = {
+  'dashboard': () => loadDashboard(),
+  'appointments': () => loadAppointments(),
+  'sales': () => loadSaleForm(),
+  'history': () => loadHistory(),
+  'inventory': () => loadInventory(),
+  'services': () => loadServices(),
+  'customers': () => loadCustomers(),
+  'staff': () => loadStaff(),
+  'attendance': () => { setAttToday(); },
+  'schedule': () => loadSchedule(),
+  'leaves': () => loadLeaves(),
+  'settings': () => loadSettings(),
+  'emp-dashboard': () => loadEmpDashboard(),
+  'emp-schedule': () => loadEmpSchedule(),
+  'emp-appointments': () => { empSetToday(); loadEmpAppointments(); },
+  'emp-leaves': () => loadEmpLeaves(),
+};
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(`view-${name}`);
+  if (el) el.classList.add('active');
+  document.getElementById('topbarTitle').textContent = VIEW_TITLES[name] || name;
+  if (VIEW_LOADERS[name]) VIEW_LOADERS[name]();
+}
+
+// ══════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════
+async function login() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Enter username and password.'; return; }
+  try {
+    const form = new FormData();
+    form.append('username', username);
+    form.append('password', password);
+    const r = await fetch('/auth/login', { method: 'POST', body: form });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Invalid credentials'); }
+    const data = await r.json();
+    TOKEN = data.access_token;
+    CURRENT_ROLE = data.role || 'admin';
+    CURRENT_STAFF_ID = data.staff_id || null;
+    CURRENT_USERNAME = username;
+
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('sidebarUser').textContent = username;
+
+    if (CURRENT_ROLE === 'staff') {
+      document.getElementById('adminNav').style.display = 'none';
+      document.getElementById('staffNav').style.display = 'block';
+      document.getElementById('sidebarRoleBadge').className = 'sidebar-role-badge sidebar-role-staff';
+      document.getElementById('sidebarRoleBadge').textContent = 'Staff';
+      document.getElementById('sidebarRoleLabel').textContent = data.staff_name || 'Staff Member';
+      showView('emp-dashboard');
+    } else {
+      document.getElementById('adminNav').style.display = 'block';
+      document.getElementById('staffNav').style.display = 'none';
+      document.getElementById('sidebarRoleBadge').className = 'sidebar-role-badge sidebar-role-admin';
+      document.getElementById('sidebarRoleBadge').textContent = 'Admin';
+      document.getElementById('sidebarRoleLabel').textContent = 'Salon Admin';
+      showView('dashboard');
+    }
+  } catch (e) { errEl.textContent = e.message || 'Login failed'; }
+}
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+function confirmLogout() { document.getElementById('logoutOverlay').classList.add('open'); }
+function closeLogoutModal() { document.getElementById('logoutOverlay').classList.remove('open'); }
+function logout() {
+  TOKEN = ''; CURRENT_ROLE = 'admin'; CURRENT_STAFF_ID = null; CURRENT_USERNAME = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').textContent = '';
+  closeLogoutModal();
+}
+
+async function changePassword() {
+  const np = document.getElementById('newPassword').value;
+  const cp = document.getElementById('confirmPassword').value;
+  if (!np) { toast('Enter a new password', 'err'); return; }
+  if (np !== cp) { toast('Passwords do not match', 'err'); return; }
+  try {
+    await api('PUT', '/auth/change-password', { username: CURRENT_USERNAME, password: np });
+    toast('Password updated');
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const [sales, appts, services, staff, inventory] = await Promise.all([
+      api('GET', '/sales/history'), api('GET', '/appointments/today'),
+      api('GET', '/services'), api('GET', '/staff'), api('GET', '/inventory')
+    ]);
+    const revenue = sales.reduce((s, x) => s + x.total, 0);
+    document.getElementById('statRevenue').textContent = '$' + revenue.toFixed(2);
+    document.getElementById('statCount').textContent = sales.length;
+    document.getElementById('statAppts').textContent = appts.length;
+    document.getElementById('statServices').textContent = services.filter(s => s.is_active).length;
+    document.getElementById('statStaff').textContent = staff.filter(s => s.is_active).length;
+    document.getElementById('statLow').textContent = inventory.filter(p => p.stock_quantity <= 5 && p.is_active !== false).length;
+    document.getElementById('recentSalesBody').innerHTML = sales.slice(0, 10).map((s, i) => `
+      <tr>
+        <td><span class="badge badge-muted">${i + 1}</span></td>
+        <td>${s.item}</td>
+        <td><span class="badge ${s.type === 'Service' ? 'badge-blue' : 'badge-purple'}">${s.type}</span></td>
+        <td>${s.customer}</td>
+        <td style="color:var(--gold);font-family:var(--mono)">$${s.total.toFixed(2)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" class="empty-state">No sales yet.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// APPOINTMENTS
+// ══════════════════════════════════════════════
+async function loadAppointments() {
+  const dateFilter = document.getElementById('apptDateFilter').value;
+  const statusFilter = document.getElementById('apptStatusFilter').value;
+  try {
+    const appts = await api('GET', '/appointments' + (dateFilter ? `?date_filter=${dateFilter}` : ''));
+    const filtered = statusFilter ? appts.filter(a => a.status === statusFilter) : appts;
+    const counts = { scheduled: 0, confirmed: 0, completed: 0, cancelled: 0 };
+    appts.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+    ['Scheduled', 'Confirmed', 'Completed', 'Cancelled'].forEach(k =>
+      document.getElementById(`apptStat${k}`).textContent = counts[k.toLowerCase()]);
+    const container = document.getElementById('apptList');
+    container.innerHTML = filtered.length ? filtered.map(a => `
+      <div class="appt-card" onclick="openApptDetail(${a.id})">
+        <div class="appt-card-left">
+          <div class="appt-ref">${a.reference}</div>
+          <div class="appt-who">${a.customer}</div>
+          <div class="appt-svcs">${a.services.map(s => s.name).join(', ')}</div>
+          <div class="appt-meta">
+            <span style="font-size:12px;color:var(--muted)">🕐 ${a.scheduled_at}</span>
+            <span style="font-size:12px;color:var(--muted)">⏱ ${a.duration} mins</span>
+            ${a.staff !== 'Unassigned' ? `<span style="font-size:12px;color:var(--muted)">👤 ${a.staff}</span>` : ''}
+            <span class="badge ${a.booking_type === 'online' ? 'badge-blue' : 'badge-muted'}">${a.booking_type}</span>
+          </div>
+        </div>
+        <div class="appt-card-right">
+          <span class="badge badge-${a.status}">${a.status}</span>
+        </div>
+      </div>`).join('') : '<div class="empty-state">No appointments found.</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function clearApptFilters() {
+  document.getElementById('apptDateFilter').value = '';
+  document.getElementById('apptStatusFilter').value = '';
+  loadAppointments();
+}
+
+async function openAddAppointment() {
+  // BUG FIX: Reset all fields including walk-in
+  ['apptGuestName', 'apptGuestPhone', 'apptGuestEmail', 'apptNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('apptDate').value = '';
+  document.getElementById('apptSelectedSlot').value = '';
+  document.getElementById('apptSlotsGrid').innerHTML = '';
+  document.getElementById('apptSlotInfo').textContent = '';
+  document.getElementById('apptCustomerType').value = 'registered';
+  toggleApptCustomerType();
+  try {
+    const [customers, services, staff] = await Promise.all([
+      api('GET', '/customers'), api('GET', '/services'), api('GET', '/staff')
+    ]);
+    document.getElementById('apptCustomerSelect').innerHTML =
+      '<option value="">Select customer…</option>' +
+      customers.map(c => `<option value="${c.id}">${c.name}${c.phone ? ' — ' + c.phone : ''}</option>`).join('');
+    document.getElementById('apptServiceCheckboxes').innerHTML =
+      services.filter(s => s.is_active).map(s => `
+        <label class="svc-checkbox-item" id="svcItem${s.id}">
+          <input type="checkbox" value="${s.id}" onchange="onSvcCheck(${s.id})" />
+          <div>
+            <div style="font-weight:600;font-size:13px">${s.name}</div>
+            <div style="font-size:11px;color:var(--muted)">${s.duration} mins · $${s.price}</div>
+          </div>
+        </label>`).join('');
+    document.getElementById('apptStaffSelect').innerHTML =
+      '<option value="">Auto-assign</option>' +
+      staff.filter(s => s.is_active).map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  } catch (e) { toast(e.message, 'err'); }
+  document.getElementById('apptOverlay').classList.add('open');
+}
+
+// BUG FIX: Walk-in fields clear on close
+function closeApptModal() {
+  document.getElementById('apptOverlay').classList.remove('open');
+  ['apptGuestName', 'apptGuestPhone', 'apptGuestEmail'].forEach(id => document.getElementById(id).value = '');
+}
+
+function toggleApptCustomerType() {
+  const type = document.getElementById('apptCustomerType').value;
+  document.getElementById('apptRegisteredFields').style.display = type === 'registered' ? '' : 'none';
+  document.getElementById('apptWalkinFields').style.display = type === 'walkin' ? '' : 'none';
+}
+
+function onSvcCheck(id) {
+  const cb = document.querySelector(`#svcItem${id} input`);
+  document.getElementById(`svcItem${id}`).classList.toggle('checked', cb.checked);
+  if (document.getElementById('apptDate').value) loadApptSlots();
+}
+
+async function loadApptSlots() {
+  const date = document.getElementById('apptDate').value;
+  if (!date) return;
+  const selected = [...document.querySelectorAll('#apptServiceCheckboxes input:checked')].map(cb => cb.value);
+  if (!selected.length) {
+    document.getElementById('apptSlotsGrid').innerHTML = '<div class="empty-state" style="font-size:12px">Select at least one service.</div>';
+    return;
+  }
+  document.getElementById('apptSlotsGrid').innerHTML = '<div style="font-size:12px;color:var(--muted)">Loading slots…</div>';
+  try {
+    const data = await api('GET', `/appointments/slots/available?date=${date}&service_ids=${selected.join(',')}`);
+    if (!data.slots || !data.slots.length) {
+      document.getElementById('apptSlotsGrid').innerHTML = '<div class="empty-state" style="font-size:12px">Salon is closed this day.</div>';
+      return;
+    }
+    document.getElementById('apptSlotInfo').textContent = `· ${data.total_duration} mins total`;
+
+    // BUG FIX: Filter past slots for today
+    const now = new Date();
+    const isToday = date === now.toISOString().split('T')[0];
+    const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+    document.getElementById('apptSlotsGrid').innerHTML = data.slots.map(s => {
+      const isPast = isToday && s.time <= nowStr;
+      const cls = isPast ? 'past' : (s.available ? 'free' : 'taken');
+      const disabled = cls !== 'free' ? 'disabled' : '';
+      return `<button class="slot-btn ${cls}" ${disabled} onclick="selectSlot('${s.time}',this)">${s.time}</button>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('apptSlotsGrid').innerHTML = `<div class="empty-state" style="color:var(--red);font-size:12px">${e.message}</div>`;
+  }
+}
+
+function selectSlot(time, btn) {
+  document.querySelectorAll('#apptSlotsGrid .slot-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('apptSelectedSlot').value = time;
+}
+
+async function saveAppointment() {
+  const type = document.getElementById('apptCustomerType').value;
+  const serviceIds = [...document.querySelectorAll('#apptServiceCheckboxes input:checked')].map(cb => parseInt(cb.value));
+  const slot = document.getElementById('apptSelectedSlot').value;
+  const date = document.getElementById('apptDate').value;
+  if (!serviceIds.length) { toast('Select at least one service', 'err'); return; }
+  if (!date) { toast('Select a date', 'err'); return; }
+  if (!slot) { toast('Select a time slot', 'err'); return; }
+  const payload = {
+    service_ids: serviceIds,
+    scheduled_at: `${date} ${slot}`,
+    staff_id: parseInt(document.getElementById('apptStaffSelect').value) || null,
+    notes: document.getElementById('apptNotes').value,
+    booking_type: 'admin'
+  };
+  if (type === 'registered') {
+    payload.customer_id = parseInt(document.getElementById('apptCustomerSelect').value) || null;
+  } else {
+    payload.guest_name = document.getElementById('apptGuestName').value;
+    payload.guest_phone = document.getElementById('apptGuestPhone').value;
+    payload.guest_email = document.getElementById('apptGuestEmail').value;
+  }
+  try {
+    await api('POST', '/appointments', payload);
+    toast('Appointment booked!');
+    closeApptModal();
+    loadAppointments();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function openApptDetail(id) {
+  try {
+    const [a, staff] = await Promise.all([api('GET', `/appointments/${id}`), api('GET', '/staff')]);
+    document.getElementById('detailRef').textContent = a.reference;
+    document.getElementById('detailStatusBadge').innerHTML = `<span class="badge badge-${a.status}">${a.status}</span>`;
+    document.getElementById('detailCustomer').textContent = a.customer;
+    document.getElementById('detailStaff').textContent = a.staff;
+    document.getElementById('detailDateTime').textContent = a.scheduled_at;
+    document.getElementById('detailDuration').textContent = a.duration + ' mins';
+    document.getElementById('detailServices').innerHTML = a.services.map(s =>
+      `<span class="badge badge-blue" style="margin:2px">${s.name}</span>`).join('');
+    document.getElementById('detailNoteDisplay').textContent = a.notes ? `"${a.notes}"` : '';
+    document.getElementById('detailNotesInput').value = a.notes || '';
+    document.getElementById('detailStaffSelect').innerHTML =
+      '<option value="">Unassigned</option>' +
+      staff.filter(s => s.is_active).map(s =>
+        `<option value="${s.id}" ${s.id === a.staff_id ? 'selected' : ''}>${s.name}</option>`).join('');
+    const statuses = ['scheduled', 'confirmed', 'completed', 'cancelled', 'postponed'];
+    document.getElementById('detailStatusBtns').innerHTML = statuses.map(st =>
+      `<button class="btn btn-sm ${st === a.status ? 'btn-gold' : 'btn-ghost'}" onclick="updateApptStatus(${id},'${st}')">${st}</button>`
+    ).join('');
+    document.getElementById('detailActionBtns').innerHTML = (a.status !== 'completed' && a.status !== 'cancelled')
+      ? `<button class="btn btn-success btn-sm" onclick="completeAppointment(${id})">✓ Complete</button>
+         <button class="btn btn-danger btn-sm" onclick="updateApptStatus(${id},'cancelled')">✕ Cancel</button>` : '';
+    _autoSalePendingApptId = id;
+    _autoSaleServices = a.services;
+    _autoSaleCustomerId = a.customer_id;
+    document.getElementById('apptDetailOverlay').classList.add('open');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function closeApptDetail() { document.getElementById('apptDetailOverlay').classList.remove('open'); }
+
+async function updateApptStatus(id, status) {
+  try {
+    await api('PUT', `/appointments/${id}`, { status });
+    if (status === 'completed') { closeApptDetail(); showAutoSalePopup(); }
+    else { toast(`Status → ${status}`); closeApptDetail(); loadAppointments(); }
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function completeAppointment(id) { await updateApptStatus(id, 'completed'); }
+
+async function saveApptChanges() {
+  const staffId = document.getElementById('detailStaffSelect').value;
+  const notes = document.getElementById('detailNotesInput').value;
+  try {
+    await api('PUT', `/appointments/${_autoSalePendingApptId}`,
+      { staff_id: staffId ? parseInt(staffId) : null, notes });
+    toast('Appointment updated');
+    closeApptDetail();
+    loadAppointments();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── Auto Sale ──────────────────────────────────
+function showAutoSalePopup() {
+  let total = 0;
+  document.getElementById('autoSaleBreakdown').innerHTML = _autoSaleServices.map(s => {
+    total += s.price || 0;
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${s.name}</span><span style="font-family:var(--mono)">$${(s.price || 0).toFixed(2)}</span></div>`;
+  }).join('');
+  document.getElementById('autoSaleTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('autoSaleOverlay').classList.add('open');
+}
+function closeAutoSale() { document.getElementById('autoSaleOverlay').classList.remove('open'); loadAppointments(); }
+async function confirmAutoSale() {
+  try {
+    for (const svc of _autoSaleServices)
+      await api('POST', '/sales', { service_id: svc.id, quantity: 1, customer_id: _autoSaleCustomerId || null });
+    toast('Sale recorded!');
+    closeAutoSale();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// INVENTORY
+// ══════════════════════════════════════════════
+async function loadInventory() {
+  try {
+    const items = await api('GET', '/inventory');
+    const showDeact = document.getElementById('showDeactivated').checked;
+    const filtered = showDeact ? items : items.filter(p => p.is_active !== false);
+    document.getElementById('inventoryBody').innerHTML = filtered.length ? filtered.map(p => {
+      const isDeact = p.is_active === false;
+      const stockBadge = p.stock_quantity <= 5
+        ? `<span class="badge badge-red">${p.stock_quantity}</span>`
+        : `<span class="badge badge-green">${p.stock_quantity}</span>`;
+      return `<tr class="${isDeact ? 'deactivated-row' : ''}">
+        <td>${p.name} ${isDeact ? '<span class="badge badge-deactivated">Deactivated</span>' : ''}</td>
+        <td style="font-family:var(--mono)">$${p.price.toFixed(2)}</td>
+        <td>${stockBadge}</td>
+        <td>${isDeact ? '<span class="badge badge-muted">Inactive</span>' : '<span class="badge badge-green">Active</span>'}</td>
+        <td>
+          <div class="row-actions">
+            ${!isDeact ? `<button class="btn btn-ghost btn-sm" onclick="openEditProduct(${p.id})">Edit</button>` : ''}
+            ${!isDeact
+              ? `<button class="btn btn-danger btn-sm" onclick="deactivateProduct(${p.id})">Deactivate</button>`
+              : `<button class="btn btn-danger btn-sm" onclick="forceDeleteProduct(${p.id})">Remove</button>`}
+          </div>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="empty-state">No products found.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function openAddProduct() {
+  document.getElementById('productEditId').value = '';
+  document.getElementById('productModalTitle').textContent = 'Add Product';
+  ['productName', 'productPrice', 'productStock'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('productOverlay').classList.add('open');
+}
+async function openEditProduct(id) {
+  try {
+    const items = await api('GET', '/inventory');
+    const p = items.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('productEditId').value = id;
+    document.getElementById('productModalTitle').textContent = 'Edit Product';
+    document.getElementById('productName').value = p.name;
+    document.getElementById('productPrice').value = p.price;
+    document.getElementById('productStock').value = p.stock_quantity;
+    document.getElementById('productOverlay').classList.add('open');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function closeProductModal() { document.getElementById('productOverlay').classList.remove('open'); }
+async function saveProduct() {
+  const id = document.getElementById('productEditId').value;
+  const payload = {
+    name: document.getElementById('productName').value.trim(),
+    price: parseFloat(document.getElementById('productPrice').value),
+    stock_quantity: parseInt(document.getElementById('productStock').value)
+  };
+  if (!payload.name) { toast('Enter product name', 'err'); return; }
+  try {
+    if (id) await api('PUT', `/products/${id}`, payload);
+    else await api('POST', '/products', payload);
+    toast(id ? 'Product updated' : 'Product added');
+    closeProductModal();
+    loadInventory();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deactivateProduct(id) {
+  if (!confirm('Deactivate this product?')) return;
+  try { const r = await api('DELETE', `/products/${id}`); toast(r.message); loadInventory(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function forceDeleteProduct(id) {
+  if (!confirm('Permanently remove from inventory? Cannot be undone.')) return;
+  try { const r = await api('DELETE', `/products/${id}?force=true`); toast(r.message); loadInventory(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// SERVICES
+// ══════════════════════════════════════════════
+async function loadServices() {
+  try {
+    const services = await api('GET', '/services');
+    document.getElementById('serviceGrid').innerHTML = services.length ? services.map(s => `
+      <div class="service-card ${!s.is_active ? 'deactivated-row' : ''}">
+        <div class="service-card-header">
+          <div>
+            <div class="service-card-name">${s.name}
+              ${!s.is_active ? '<span class="badge badge-deactivated" style="margin-left:6px">Inactive</span>' : ''}
+            </div>
+            ${s.category ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${s.category}</div>` : ''}
+          </div>
+          <button class="status-pill ${s.is_active ? 'status-active' : 'status-inactive'}" onclick="toggleService(${s.id})">
+            ${s.is_active ? '● Active' : '● Inactive'}
+          </button>
+        </div>
+        ${s.description ? `<div class="service-card-desc">${s.description}</div>` : ''}
+        <div class="service-card-meta">
+          <span class="service-card-price">$${s.price.toFixed(2)}</span>
+          <span class="service-card-duration">⏱ ${s.duration} mins</span>
+        </div>
+        <div class="service-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditService(${s.id})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteService(${s.id})">Delete</button>
+        </div>
+      </div>`).join('') : '<div class="empty-state" style="grid-column:1/-1">No services yet.</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+function openAddService() {
+  document.getElementById('serviceEditId').value = '';
+  document.getElementById('serviceModalTitle').textContent = 'Add Service';
+  ['serviceName', 'serviceCategory', 'serviceDesc', 'serviceDuration', 'servicePrice'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('serviceOverlay').classList.add('open');
+}
+async function openEditService(id) {
+  try {
+    const services = await api('GET', '/services');
+    const s = services.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('serviceEditId').value = id;
+    document.getElementById('serviceModalTitle').textContent = 'Edit Service';
+    document.getElementById('serviceName').value = s.name;
+    document.getElementById('serviceCategory').value = s.category || '';
+    document.getElementById('serviceDesc').value = s.description || '';
+    document.getElementById('serviceDuration').value = s.duration;
+    document.getElementById('servicePrice').value = s.price;
+    document.getElementById('serviceOverlay').classList.add('open');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function closeServiceModal() { document.getElementById('serviceOverlay').classList.remove('open'); }
+async function saveService() {
+  const id = document.getElementById('serviceEditId').value;
+  const payload = {
+    name: document.getElementById('serviceName').value.trim(),
+    category: document.getElementById('serviceCategory').value.trim(),
+    description: document.getElementById('serviceDesc').value.trim(),
+    duration: parseInt(document.getElementById('serviceDuration').value),
+    price: parseFloat(document.getElementById('servicePrice').value),
+    is_active: true
+  };
+  if (!payload.name) { toast('Enter service name', 'err'); return; }
+  try {
+    if (id) await api('PUT', `/services/${id}`, payload);
+    else await api('POST', '/services', payload);
+    toast(id ? 'Service updated' : 'Service added');
+    closeServiceModal();
+    loadServices();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteService(id) {
+  if (!confirm('Delete this service?')) return;
+  try { const r = await api('DELETE', `/services/${id}`); toast(r.message); loadServices(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function toggleService(id) {
+  try { await api('PATCH', `/services/${id}/toggle`); loadServices(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// CUSTOMERS
+// ══════════════════════════════════════════════
+async function loadCustomers() {
+  try {
+    const customers = await api('GET', '/customers');
+    document.getElementById('customersBody').innerHTML = customers.length ? customers.map((c, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${c.name}</strong></td>
+        <td>${c.phone || '—'}</td>
+        <td>${c.email || '—'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openCustomerProfile(${c.id})">Profile</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Delete</button>
+          </div>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="5" class="empty-state">No customers yet.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+function openAddCustomer() {
+  ['customerName', 'customerPhone', 'customerEmail'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('customerOverlay').classList.add('open');
+}
+function closeCustomerModal() { document.getElementById('customerOverlay').classList.remove('open'); }
+async function saveCustomer() {
+  const payload = {
+    name: document.getElementById('customerName').value.trim(),
+    phone: document.getElementById('customerPhone').value.trim(),
+    email: document.getElementById('customerEmail').value.trim()
+  };
+  if (!payload.name) { toast('Enter customer name', 'err'); return; }
+  try { await api('POST', '/customers', payload); toast('Customer added'); closeCustomerModal(); loadCustomers(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function deleteCustomer(id) {
+  if (!confirm('Delete this customer?')) return;
+  try { const r = await api('DELETE', `/customers/${id}`); toast(r.message); loadCustomers(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function openCustomerProfile(id) {
+  showView('customer-profile');
+  try {
+    const [allC, stats, history, notes, staff] = await Promise.all([
+      api('GET', '/customers'), api('GET', `/customers/${id}/stats`),
+      api('GET', `/customers/${id}/history`), api('GET', `/customers/${id}/notes`),
+      api('GET', '/staff')
+    ]);
+    const c = allC.find(x => x.id === id) || {};
+    document.getElementById('profilePageTitle').textContent = c.name;
+    document.getElementById('profileAvatar').textContent = (c.name || '?')[0].toUpperCase();
+    document.getElementById('profileName').textContent = c.name;
+    document.getElementById('profilePhone').textContent = '📞 ' + (c.phone || 'No phone');
+    document.getElementById('profileEmail').textContent = '✉ ' + (c.email || 'No email');
+    document.getElementById('profileSince').textContent = stats.member_since ? `Since ${stats.member_since}` : '';
+    document.getElementById('statSpent').textContent = '$' + stats.total_spent.toFixed(2);
+    document.getElementById('statVisits').textContent = stats.total_visits;
+    document.getElementById('profileStatAppts').textContent = stats.total_appointments;
+    document.getElementById('statLastVisit').textContent = stats.last_visit || 'None';
+    document.getElementById('visitCount').textContent = `${history.length} visits`;
+    document.getElementById('visitHistoryBody').innerHTML = history.length ? history.map(v => `
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:4px">
+          <span style="font-size:13px;font-weight:600">${v.services}</span>
+          <span class="visit-${v.status}">${v.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">${v.scheduled_at} · ${v.duration} mins · ${v.staff}</div>
+      </div>`).join('') : '<div class="empty-state">No visit history.</div>';
+    const ns = document.getElementById('noteStaffSelect');
+    ns.innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    ns.dataset.customerId = id;
+    renderNotes(notes);
+  } catch (e) { toast(e.message, 'err'); }
+}
+function renderNotes(notes) {
+  document.getElementById('notesBody').innerHTML = notes.length ? notes.map(n => `
+    <div class="note-card">
+      <div class="note-card-body">
+        <div class="note-text">${n.note}</div>
+        <div class="note-meta">by <span class="note-staff">${n.staff}</span> · ${n.created_at}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteNote(${n.id})">✕</button>
+    </div>`).join('') : '<div class="empty-state">No notes yet.</div>';
+}
+function openAddNoteModal() { document.getElementById('addNoteOverlay').classList.add('open'); }
+function closeAddNoteModal() { document.getElementById('addNoteOverlay').classList.remove('open'); }
+async function submitNote() {
+  const cid = document.getElementById('noteStaffSelect').dataset.customerId;
+  const staffId = document.getElementById('noteStaffSelect').value;
+  const note = document.getElementById('noteText').value.trim();
+  if (!note) { toast('Enter a note', 'err'); return; }
+  try {
+    await api('POST', `/customers/${cid}/notes`, { note, staff_id: parseInt(staffId) });
+    toast('Note added');
+    document.getElementById('noteText').value = '';
+    closeAddNoteModal();
+    renderNotes(await api('GET', `/customers/${cid}/notes`));
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteNote(nid) {
+  const cid = document.getElementById('noteStaffSelect').dataset.customerId;
+  try {
+    await api('DELETE', `/customers/${cid}/notes/${nid}`);
+    toast('Note deleted');
+    renderNotes(await api('GET', `/customers/${cid}/notes`));
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// STAFF
+// ══════════════════════════════════════════════
+async function loadStaff() {
+  try {
+    const staff = await api('GET', '/staff');
+    document.getElementById('staffBody').innerHTML = staff.length ? staff.map(s => `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="staff-avatar">${s.name[0]}</div>
+            <strong>${s.name}</strong>
+          </div>
+        </td>
+        <td><span class="badge badge-muted">${s.role}</span></td>
+        <td>${s.phone || '—'}</td>
+        <td>${s.email || '—'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openCreateAccountForStaff(${s.id},'${s.name.replace(/'/g,"\\'")}')">🔑 Login</button>
+        </td>
+        <td>
+          <button class="status-pill ${s.is_active ? 'status-active' : 'status-inactive'}" onclick="toggleStaff(${s.id})">
+            ${s.is_active ? '● Active' : '● Inactive'}
+          </button>
+        </td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEditStaff(${s.id})">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStaff(${s.id})">Delete</button>
+          </div>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="7" class="empty-state">No staff members.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+function openAddStaff() {
+  document.getElementById('staffEditId').value = '';
+  document.getElementById('staffModalTitle').textContent = 'Add Staff Member';
+  ['staffName','staffRole','staffPhone','staffEmail','staffSpecialties'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('staffOverlay').classList.add('open');
+}
+async function openEditStaff(id) {
+  try {
+    const staff = await api('GET', '/staff');
+    const s = staff.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('staffEditId').value = id;
+    document.getElementById('staffModalTitle').textContent = 'Edit Staff';
+    document.getElementById('staffName').value = s.name;
+    document.getElementById('staffRole').value = s.role;
+    document.getElementById('staffPhone').value = s.phone || '';
+    document.getElementById('staffEmail').value = s.email || '';
+    document.getElementById('staffSpecialties').value = s.specialties || '';
+    document.getElementById('staffOverlay').classList.add('open');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function closeStaffModal() { document.getElementById('staffOverlay').classList.remove('open'); }
+async function saveStaff() {
+  const id = document.getElementById('staffEditId').value;
+  const payload = {
+    name: document.getElementById('staffName').value.trim(),
+    role: document.getElementById('staffRole').value.trim(),
+    phone: document.getElementById('staffPhone').value.trim(),
+    email: document.getElementById('staffEmail').value.trim(),
+    specialties: document.getElementById('staffSpecialties').value.trim(),
+    is_active: true
+  };
+  if (!payload.name || !payload.role) { toast('Name and role required', 'err'); return; }
+  try {
+    if (id) await api('PUT', `/staff/${id}`, payload);
+    else await api('POST', '/staff', payload);
+    toast(id ? 'Staff updated' : 'Staff added');
+    closeStaffModal();
+    loadStaff();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteStaff(id) {
+  if (!confirm('Delete this staff member?')) return;
+  try { const r = await api('DELETE', `/staff/${id}`); toast(r.message); loadStaff(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function toggleStaff(id) {
+  try { await api('PATCH', `/staff/${id}/toggle`); loadStaff(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// SALES
+// ══════════════════════════════════════════════
+async function loadSaleForm() {
+  try {
+    const [products, services, customers] = await Promise.all([
+      api('GET', '/inventory'), api('GET', '/services'), api('GET', '/customers')
+    ]);
+    document.getElementById('saleProductSelect').innerHTML =
+      products.filter(p => p.is_active !== false && p.stock_quantity > 0)
+        .map(p => `<option value="${p.id}">${p.name} ($${p.price} · ${p.stock_quantity} in stock)</option>`).join('');
+    document.getElementById('saleServiceSelect').innerHTML =
+      services.filter(s => s.is_active)
+        .map(s => `<option value="${s.id}">${s.name} ($${s.price})</option>`).join('');
+    document.getElementById('saleCustomerSelect').innerHTML =
+      '<option value="">Walk-in Customer</option>' +
+      customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function onSaleTypeChange() {
+  const type = document.getElementById('saleType').value;
+  document.getElementById('saleProductRow').style.display = type === 'product' ? '' : 'none';
+  document.getElementById('saleServiceRow').style.display = type === 'service' ? '' : 'none';
+}
+async function processSale() {
+  const type = document.getElementById('saleType').value;
+  const qty = parseInt(document.getElementById('saleQty').value) || 1;
+  const payload = {
+    quantity: qty,
+    customer_id: parseInt(document.getElementById('saleCustomerSelect').value) || null
+  };
+  if (type === 'product') payload.product_id = parseInt(document.getElementById('saleProductSelect').value);
+  else payload.service_id = parseInt(document.getElementById('saleServiceSelect').value);
+  try {
+    const r = await api('POST', '/sales', payload);
+    toast(`Sale complete · $${r.total_amount.toFixed(2)}`);
+    document.getElementById('saleQty').value = 1;
+    loadSaleForm();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── Sales History with filter ──────────────────
+function setSalesFilter(period) {
+  const today = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  _salesDateFilter = period;
+  if (period === 'today') document.getElementById('salesDateFilter').value = fmt(today);
+  else if (period === 'week') {
+    const mon = new Date(today);
+    mon.setDate(today.getDate() - today.getDay() + 1);
+    document.getElementById('salesDateFilter').value = fmt(mon);
+  } else if (period === 'month') {
+    document.getElementById('salesDateFilter').value =
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  } else {
+    document.getElementById('salesDateFilter').value = '';
+  }
+}
+async function loadHistory() {
+  const dateFilter = document.getElementById('salesDateFilter').value;
+  try {
+    const sales = await api('GET', '/sales/history' + (dateFilter ? `?date_from=${dateFilter}` : ''));
+    const totalRev = sales.reduce((s, x) => s + x.total, 0);
+    if (dateFilter) {
+      document.getElementById('salesSummaryBar').style.display = '';
+      document.getElementById('salesSumRevenue').textContent = '$' + totalRev.toFixed(2);
+      document.getElementById('salesSumCount').textContent = sales.length;
+      document.getElementById('salesSumServices').textContent = sales.filter(s => s.type === 'Service').length;
+      document.getElementById('salesSumProducts').textContent = sales.filter(s => s.type === 'Product').length;
+      document.getElementById('historyCardTitle').textContent = `From ${dateFilter}`;
+    } else {
+      document.getElementById('salesSummaryBar').style.display = 'none';
+      document.getElementById('historyCardTitle').textContent = 'All Transactions';
+    }
+    document.getElementById('historyBody').innerHTML = sales.length ? sales.map((s, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${s.item}</td>
+        <td><span class="badge ${s.type === 'Service' ? 'badge-blue' : 'badge-purple'}">${s.type}</span></td>
+        <td>${s.customer}</td>
+        <td style="font-size:12px;color:var(--muted)">${s.date}</td>
+        <td style="color:var(--gold);font-family:var(--mono)">$${s.total.toFixed(2)}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty-state">No sales in this period.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// ATTENDANCE
+// ══════════════════════════════════════════════
+function switchAttTab(tab) {
+  document.getElementById('attTabDaily').style.display = tab === 'daily' ? '' : 'none';
+  document.getElementById('attTabReport').style.display = tab === 'report' ? '' : 'none';
+  document.getElementById('attTab1').classList.toggle('active', tab === 'daily');
+  document.getElementById('attTab2').classList.toggle('active', tab === 'report');
+}
+function setAttToday() {
+  document.getElementById('attDatePicker').value = new Date().toISOString().split('T')[0];
+  loadAttendance();
+}
+async function loadAttendance() {
+  const date = document.getElementById('attDatePicker').value;
+  if (!date) return;
+  try {
+    const [staff, records] = await Promise.all([api('GET', '/staff'), api('GET', `/attendance?date=${date}`)]);
+    const active = staff.filter(s => s.is_active);
+    const recordMap = {};
+    records.forEach(r => { recordMap[r.staff_id] = r.is_present; });
+    let present = 0, absent = 0;
+    document.getElementById('attCardTitle').textContent = `Attendance — ${date}`;
+    document.getElementById('attGrid').innerHTML = active.map(s => {
+      const isPresent = recordMap[s.id] !== undefined ? recordMap[s.id] : true;
+      if (isPresent) present++; else absent++;
+      return `
+        <div class="att-card">
+          <div class="att-card-info">
+            <div class="staff-avatar">${s.name[0]}</div>
+            <div><div class="att-name">${s.name}</div><div class="att-role">${s.role}</div></div>
+          </div>
+          <div class="att-toggle">
+            <button class="att-btn ${isPresent ? 'present' : ''}" onclick="markAttendance(${s.id},'${date}',true)">✓ Present</button>
+            <button class="att-btn ${!isPresent ? 'absent' : ''}" onclick="markAttendance(${s.id},'${date}',false)">✗ Absent</button>
+          </div>
+        </div>`;
+    }).join('') || '<div class="empty-state" style="grid-column:1/-1">No active staff.</div>';
+    document.getElementById('attPresentCount').textContent = `Present: ${present}`;
+    document.getElementById('attAbsentCount').textContent = `Absent: ${absent}`;
+    document.getElementById('attTotalCount').textContent = `Total: ${active.length}`;
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function markAttendance(staffId, date, isPresent) {
+  try { await api('POST', '/attendance', { staff_id: staffId, date, is_present: isPresent }); loadAttendance(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function loadAttendanceReport() {
+  const month = document.getElementById('attReportMonth').value;
+  if (!month) { toast('Select a month', 'err'); return; }
+  try {
+    const r = await api('GET', `/attendance/report?month=${month}`);
+    const content = document.getElementById('attReportContent');
+    if (!r.length) { content.innerHTML = '<div class="empty-state">No data for this month.</div>'; return; }
+    content.innerHTML = '<div class="report-grid">' + r.map(s => {
+      const pct = s.working_days ? Math.round((s.present_days / s.working_days) * 100) : 0;
+      return `
+        <div class="report-card">
+          <div class="report-card-top">
+            <div class="staff-avatar">${s.name[0]}</div>
+            <div><div style="font-weight:600;font-size:13px">${s.name}</div><div style="font-size:11px;color:var(--muted)">${s.role}</div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span>${s.present_days}/${s.working_days} days</span>
+            <span style="font-weight:600;color:${pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--gold)' : 'var(--red)'}">${pct}%</span>
+          </div>
+          <div class="report-bar-wrap">
+            <div class="report-bar ${pct < 60 ? 'low' : pct < 80 ? 'mid' : ''}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+    }).join('') + '</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// SCHEDULE — BUG FIX: Fetch + lock salon closed days
+// ══════════════════════════════════════════════
+async function loadSchedule() {
+  try {
+    const [staff, salonSched] = await Promise.all([api('GET', '/staff'), api('GET', '/schedule/salon')]);
+    _salonClosedDays = new Set(salonSched.filter(d => !d.is_open).map(d => d.day_of_week));
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const active = staff.filter(s => s.is_active);
+    if (!active.length) {
+      document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" class="empty-state">No active staff.</td></tr>';
+      return;
+    }
+    const scheduleData = await Promise.all(active.map(s => api('GET', `/staff/${s.id}/schedule`)));
+    document.getElementById('scheduleBody').innerHTML = active.map((s, i) => {
+      const dayMap = {};
+      (scheduleData[i] || []).forEach(d => { dayMap[d.day_of_week] = d.is_working; });
+      const cells = days.map((d, dayIdx) => {
+        if (_salonClosedDays.has(dayIdx))
+          return `<td><div class="day-toggle salon-closed" title="Salon closed">✕</div></td>`;
+        const isWorking = dayMap[dayIdx] !== undefined ? dayMap[dayIdx] : true;
+        return `<td><div class="day-toggle ${isWorking ? 'working' : 'off'}"
+          onclick="toggleStaffDay(${s.id},${dayIdx},${!isWorking})">${isWorking ? '✓' : '✕'}</div></td>`;
+      }).join('');
+      return `<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="staff-avatar">${s.name[0]}</div>
+            <div><div style="font-weight:600;font-size:13px">${s.name}</div><div style="font-size:11px;color:var(--muted)">${s.role}</div></div>
+          </div>
+        </td>${cells}</tr>`;
+    }).join('');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function toggleStaffDay(staffId, day, isWorking) {
+  try { await api('POST', `/staff/${staffId}/schedule`, { staff_id: staffId, day_of_week: day, is_working: isWorking }); loadSchedule(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// LEAVE REQUESTS
+// ══════════════════════════════════════════════
+function switchLeaveTab(tab) {
+  const map = { pending: 1, all: 2, submit: 3 };
+  Object.keys(map).forEach(t => {
+    document.getElementById(`leaveTab${map[t]}`).classList.toggle('active', t === tab);
+    const capTab = t.charAt(0).toUpperCase() + t.slice(1);
+    document.getElementById(`leaveTab${capTab}`).style.display = t === tab ? '' : 'none';
+  });
+  if (tab !== 'submit') loadLeaves();
+}
+async function loadLeaves() {
+  try {
+    const [leaves, staff] = await Promise.all([api('GET', '/leave'), api('GET', '/staff')]);
+    document.getElementById('leaveStaffSelect').innerHTML =
+      staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const pending = leaves.filter(l => l.status === 'pending');
+    document.getElementById('leavePendingList').innerHTML = pending.length
+      ? pending.map(l => renderLeaveCard(l, true)).join('')
+      : '<div class="empty-state">No pending leave requests.</div>';
+    document.getElementById('leaveAllBody').innerHTML = leaves.length ? leaves.map(l => `
+      <tr>
+        <td>${l.staff_name}</td>
+        <td style="font-family:var(--mono)">${l.leave_date}</td>
+        <td style="font-size:12px">${l.reason || '—'}</td>
+        <td><span class="badge ${l.status === 'approved' ? 'badge-green' : l.status === 'rejected' ? 'badge-red' : 'badge-gold'}">${l.status}</span></td>
+        <td>${l.status === 'pending'
+          ? `<div class="row-actions">
+              <button class="btn btn-success btn-sm" onclick="approveLeave(${l.id})">✓ Approve</button>
+              <button class="btn btn-danger btn-sm" onclick="rejectLeave(${l.id})">✕ Reject</button>
+            </div>` : '—'}
+        </td>
+      </tr>`).join('') : '<tr><td colspan="5" class="empty-state">No leave requests.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+function renderLeaveCard(l, showActions) {
+  return `
+    <div class="leave-card">
+      <div class="leave-info">
+        <div class="leave-name">${l.staff_name}</div>
+        <div class="leave-meta">📅 ${l.leave_date}</div>
+        ${l.reason ? `<div class="leave-reason">"${l.reason}"</div>` : ''}
+      </div>
+      <div class="leave-actions">
+        <span class="badge ${l.status === 'approved' ? 'badge-green' : l.status === 'rejected' ? 'badge-red' : 'badge-gold'}">${l.status}</span>
+        ${showActions && l.status === 'pending' ? `
+          <button class="btn btn-success btn-sm" onclick="approveLeave(${l.id})">✓ Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectLeave(${l.id})">✕ Reject</button>` : ''}
+      </div>
+    </div>`;
+}
+async function approveLeave(id) {
+  try {
+    const r = await api('PUT', `/leave/${id}/approve`);
+    toast(r.message || 'Leave approved');
+    // Option B: warn about affected appointments
+    if (r.affected_appointments && r.affected_appointments.length)
+      setTimeout(() => toast(`⚠ ${r.affected_appointments.length} appointment(s) affected`, 'err'), 600);
+    loadLeaves();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function rejectLeave(id) {
+  try { await api('PUT', `/leave/${id}/reject`); toast('Leave rejected'); loadLeaves(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+async function submitLeave() {
+  const staffId = document.getElementById('leaveStaffSelect').value;
+  const date = document.getElementById('leaveDate').value;
+  const reason = document.getElementById('leaveReason').value;
+  if (!date) { toast('Select a leave date', 'err'); return; }
+  try {
+    await api('POST', '/leave', { staff_id: parseInt(staffId), leave_date: date, reason });
+    toast('Leave request submitted');
+    document.getElementById('leaveDate').value = '';
+    document.getElementById('leaveReason').value = '';
+    switchLeaveTab('pending');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════
+function switchSettingTab(tab) {
+  const tabs = ['schedule', 'special', 'specialty', 'accounts', 'password'];
+  tabs.forEach((t, i) => {
+    document.getElementById(`settingTab${i + 1}`).classList.toggle('active', t === tab);
+    const capTab = t.charAt(0).toUpperCase() + t.slice(1);
+    document.getElementById(`settingTab${capTab}`).style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'accounts') loadStaffAccounts();
+  if (tab === 'special') loadSpecialDays();
+}
+async function loadSettings() {
+  try {
+    const [salonSched, settings, staff] = await Promise.all([
+      api('GET', '/schedule/salon'), api('GET', '/settings'), api('GET', '/staff')
+    ]);
+    renderWeeklyScheduleForm(salonSched);
+    renderSpecialtyForm(settings);
+    document.getElementById('slotBufferInput').value = settings.slot_buffer || 15;
+    document.getElementById('specialStaffCheckboxes').innerHTML = staff.map(s =>
+      `<label style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <input type="checkbox" value="${s.id}" style="accent-color:var(--gold)" /> ${s.name}
+      </label>`).join('');
+    loadSpecialDays();
+  } catch (e) { toast(e.message, 'err'); }
+}
+function renderWeeklyScheduleForm(schedule) {
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const schedMap = {};
+  schedule.forEach(d => { schedMap[d.day_of_week] = d; });
+  document.getElementById('weeklyScheduleForm').innerHTML = days.map((name, i) => {
+    const d = schedMap[i] || { is_open: i < 6, open_time: '09:00', close_time: '17:00' };
+    return `
+      <div style="display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="width:110px;font-weight:600;font-size:13px">${name}</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="dayOpen${i}" ${d.is_open ? 'checked' : ''} onchange="toggleDayOpen(${i})" />
+          <span class="toggle-track"></span>
+        </label>
+        <div id="dayHours${i}" style="${d.is_open ? '' : 'display:none'}">
+          <input type="time" class="week-time-input" id="dayOpenTime${i}" value="${d.open_time || '09:00'}" />
+          <span style="color:var(--muted);margin:0 6px">to</span>
+          <input type="time" class="week-time-input" id="dayCloseTime${i}" value="${d.close_time || '17:00'}" />
+        </div>
+        <span class="week-closed-label" id="dayClosedLabel${i}" style="${d.is_open ? 'display:none' : ''}">Closed</span>
+      </div>`;
+  }).join('');
+}
+function toggleDayOpen(i) {
+  const isOpen = document.getElementById(`dayOpen${i}`).checked;
+  document.getElementById(`dayHours${i}`).style.display = isOpen ? '' : 'none';
+  document.getElementById(`dayClosedLabel${i}`).style.display = isOpen ? 'none' : '';
+}
+async function saveWeeklySchedule() {
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const isOpen = document.getElementById(`dayOpen${i}`).checked;
+    days.push({
+      day_of_week: i, is_open: isOpen,
+      open_time: isOpen ? document.getElementById(`dayOpenTime${i}`).value : null,
+      close_time: isOpen ? document.getElementById(`dayCloseTime${i}`).value : null
+    });
+  }
+  try { await api('PUT', '/schedule/salon', { days }); toast('Working hours saved'); loadSchedule(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+function renderSpecialtyForm(settings) {
+  let mapping = {};
+  try { mapping = JSON.parse(settings.specialty_mapping || '{}'); } catch {}
+  document.getElementById('specialtyMappingForm').innerHTML =
+    Object.keys(mapping).map(r => `
+      <div style="margin-bottom:12px">
+        <label class="field-label">${r}</label>
+        <input id="specialty_${r}" class="field" value="${mapping[r] || ''}" placeholder="Hair Colouring, Cutting" />
+      </div>`).join('') +
+    `<div style="margin-top:4px"><button class="btn btn-ghost btn-sm" onclick="addSpecialtyRole()">+ Add Role</button></div>`;
+}
+function addSpecialtyRole() {
+  const role = prompt('Enter role name:');
+  if (!role) return;
+  const form = document.getElementById('specialtyMappingForm');
+  const div = document.createElement('div');
+  div.style.marginBottom = '12px';
+  div.innerHTML = `<label class="field-label">${role}</label>
+    <input id="specialty_${role}" class="field" value="" placeholder="Comma-separated categories" />`;
+  form.insertBefore(div, form.lastElementChild);
+}
+async function saveSpecialtySettings() {
+  const mapping = {};
+  document.querySelectorAll('[id^="specialty_"]').forEach(el => {
+    mapping[el.id.replace('specialty_', '')] = el.value.trim();
+  });
+  const buffer = parseInt(document.getElementById('slotBufferInput').value) || 15;
+  try {
+    await api('PUT', '/settings', { specialty_mapping: JSON.stringify(mapping), slot_buffer: buffer });
+    toast('Settings saved');
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function loadSpecialDays() {
+  try {
+    const days = await api('GET', '/schedule/special');
+    document.getElementById('specialDaysList').innerHTML = days.length ? days.map(d => `
+      <div class="special-day-card ${d.is_open ? 'open-day' : 'closed-day'}">
+        <div class="special-day-info">
+          <div class="special-day-date">${d.date}</div>
+          <div class="special-day-meta">${d.is_open ? `Open ${d.open_time}–${d.close_time}` : 'Closed'}</div>
+          ${d.note ? `<div class="special-day-note">${d.note}</div>` : ''}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteSpecialDay(${d.id})">✕</button>
+      </div>`).join('') : '<div class="empty-state">No special days set.</div>';
+  } catch (e) {}
+}
+function toggleSpecialHours() {
+  document.getElementById('specialHoursFields').style.display =
+    document.getElementById('specialIsOpen').value === 'true' ? '' : 'none';
+}
+async function addSpecialDay() {
+  const date = document.getElementById('specialDate').value;
+  const isOpen = document.getElementById('specialIsOpen').value === 'true';
+  if (!date) { toast('Select a date', 'err'); return; }
+  const staffIds = [...document.querySelectorAll('#specialStaffCheckboxes input:checked')].map(cb => parseInt(cb.value));
+  try {
+    await api('POST', '/schedule/special', {
+      date, is_open: isOpen,
+      open_time: isOpen ? document.getElementById('specialOpenTime').value : null,
+      close_time: isOpen ? document.getElementById('specialCloseTime').value : null,
+      note: document.getElementById('specialNote').value,
+      staff_ids: staffIds
+    });
+    toast('Special day added');
+    document.getElementById('specialDate').value = '';
+    document.getElementById('specialNote').value = '';
+    loadSpecialDays();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteSpecialDay(id) {
+  try { await api('DELETE', `/schedule/special/${id}`); toast('Removed'); loadSpecialDays(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ── Staff Accounts ─────────────────────────────
+async function loadStaffAccounts() {
+  try {
+    const accounts = await api('GET', '/auth/accounts');
+    document.getElementById('accountsBody').innerHTML = accounts.length ? accounts.map(a => `
+      <tr>
+        <td>${a.staff_name || '—'}</td>
+        <td style="font-family:var(--mono)">${a.username}</td>
+        <td><span class="badge ${a.role === 'admin' ? 'badge-gold' : 'badge-blue'}">${a.role}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteAccount('${a.username}')">Delete</button></td>
+      </tr>`).join('') : '<tr><td colspan="4" class="empty-state">No accounts yet.</td></tr>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+function openCreateAccountModal() {
+  api('GET', '/staff').then(staff => {
+    document.getElementById('accountStaffSelect').innerHTML =
+      '<option value="">No link (admin account)</option>' +
+      staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  });
+  ['accountUsername', 'accountPassword'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('accountRole').value = 'staff';
+  document.getElementById('createAccountOverlay').classList.add('open');
+}
+function openCreateAccountForStaff(staffId, staffName) {
+  api('GET', '/staff').then(staff => {
+    document.getElementById('accountStaffSelect').innerHTML =
+      '<option value="">No link</option>' +
+      staff.map(s => `<option value="${s.id}" ${s.id === staffId ? 'selected' : ''}>${s.name}</option>`).join('');
+  });
+  document.getElementById('accountUsername').value = staffName.toLowerCase().replace(/\s+/g, '.');
+  document.getElementById('accountPassword').value = '';
+  document.getElementById('accountRole').value = 'staff';
+  document.getElementById('createAccountOverlay').classList.add('open');
+}
+function closeCreateAccountModal() { document.getElementById('createAccountOverlay').classList.remove('open'); }
+async function createStaffAccount() {
+  const username = document.getElementById('accountUsername').value.trim();
+  const password = document.getElementById('accountPassword').value;
+  const role = document.getElementById('accountRole').value;
+  const staffId = document.getElementById('accountStaffSelect').value;
+  if (!username || !password) { toast('Username and password required', 'err'); return; }
+  try {
+    await api('POST', '/auth/signup', { username, password, role, staff_id: staffId ? parseInt(staffId) : null });
+    toast('Account created');
+    closeCreateAccountModal();
+    loadStaffAccounts();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function deleteAccount(username) {
+  if (!confirm(`Delete account "${username}"?`)) return;
+  try { await api('DELETE', `/auth/accounts/${username}`); toast('Account deleted'); loadStaffAccounts(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYEE VIEWS
+// ══════════════════════════════════════════════
+async function loadEmpDashboard() {
+  const now = new Date();
+  const hr = now.getHours();
+  document.getElementById('empWelcomeName').textContent =
+    `Good ${hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening'}! 👋`;
+  document.getElementById('empWelcomeDate').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  if (!CURRENT_STAFF_ID) return;
+  try {
+    const today = now.toISOString().split('T')[0];
+    const [appts, leaves, att] = await Promise.all([
+      api('GET', `/employee/${CURRENT_STAFF_ID}/appointments?date=${today}`),
+      api('GET', `/employee/${CURRENT_STAFF_ID}/leaves`),
+      api('GET', `/attendance?date=${today}`)
+    ]);
+    document.getElementById('empStatAppts').textContent = appts.length;
+    const myAtt = att.find(a => a.staff_id === CURRENT_STAFF_ID);
+    const isClockedIn = myAtt ? myAtt.is_present : false;
+    const btn = document.getElementById('empClockBtn');
+    btn.textContent = isClockedIn ? '✓ Clocked In' : '⊕ Clock In';
+    btn.className = `emp-clock-btn ${isClockedIn ? 'emp-clock-in' : 'emp-clock-out'}`;
+    document.getElementById('empClockStatus').textContent = isClockedIn ? "You're clocked in for today" : 'Not clocked in today';
+    document.getElementById('empTodayAppts').innerHTML = appts.length ? appts.map(a => `
+      <div class="emp-appt-card">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div>
+            <div style="font-weight:600;font-size:13px">${a.customer}</div>
+            <div style="font-size:12px;color:var(--muted)">${a.services.map(s => s.name).join(', ')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--mono);font-size:13px">${(a.scheduled_at || '').split(' ')[1] || ''}</div>
+            <span class="badge badge-${a.status}">${a.status}</span>
+          </div>
+        </div>
+      </div>`).join('') : '<div class="empty-state">No appointments today.</div>';
+    document.getElementById('empLeaveStatus').innerHTML = leaves.slice(0, 3).map(l => `
+      <div class="leave-card" style="margin-bottom:8px">
+        <div class="leave-info">
+          <div class="leave-meta">📅 ${l.leave_date}</div>
+          ${l.reason ? `<div class="leave-reason">"${l.reason}"</div>` : ''}
+        </div>
+        <span class="emp-leave-status emp-leave-${l.status}">${l.status}</span>
+      </div>`).join('') || '<div class="empty-state">No leave requests.</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function toggleClock() {
+  if (!CURRENT_STAFF_ID) return;
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const att = await api('GET', `/attendance?date=${today}`);
+    const myAtt = att.find(a => a.staff_id === CURRENT_STAFF_ID);
+    const isClockedIn = myAtt ? myAtt.is_present : false;
+    await api('POST', '/attendance', { staff_id: CURRENT_STAFF_ID, date: today, is_present: !isClockedIn });
+    toast(isClockedIn ? 'Clocked out' : 'Clocked in!');
+    loadEmpDashboard();
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function loadEmpSchedule() {
+  if (!CURRENT_STAFF_ID) return;
+  try {
+    const [sched, salonSched] = await Promise.all([
+      api('GET', `/staff/${CURRENT_STAFF_ID}/schedule`), api('GET', '/schedule/salon')
+    ]);
+    const closedDays = new Set(salonSched.filter(d => !d.is_open).map(d => d.day_of_week));
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const schedMap = {};
+    sched.forEach(d => { schedMap[d.day_of_week] = d.is_working; });
+    document.getElementById('empScheduleGrid').innerHTML = days.map((name, i) => {
+      const isClosed = closedDays.has(i);
+      const isWorking = schedMap[i] !== undefined ? schedMap[i] : true;
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;font-size:13px">${name}</span>
+          ${isClosed
+            ? '<span class="badge badge-muted">Salon Closed</span>'
+            : `<span class="badge ${isWorking ? 'badge-green' : 'badge-muted'}">${isWorking ? '✓ Working' : 'Off'}</span>`}
+        </div>`;
+    }).join('');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function empSetToday() {
+  document.getElementById('empApptDate').value = new Date().toISOString().split('T')[0];
+}
+async function loadEmpAppointments() {
+  if (!CURRENT_STAFF_ID) return;
+  const date = document.getElementById('empApptDate').value;
+  try {
+    const appts = await api('GET', `/employee/${CURRENT_STAFF_ID}/appointments${date ? `?date=${date}` : ''}`);
+    document.getElementById('empApptList').innerHTML = appts.length ? appts.map(a => `
+      <div class="appt-card" style="cursor:default">
+        <div class="appt-card-left">
+          <div class="appt-ref">${a.reference}</div>
+          <div class="appt-who">${a.customer}</div>
+          <div class="appt-svcs">${a.services.map(s => s.name).join(', ')}</div>
+          <div class="appt-meta">
+            <span style="font-size:12px;color:var(--muted)">🕐 ${a.scheduled_at}</span>
+            <span style="font-size:12px;color:var(--muted)">⏱ ${a.duration} mins</span>
+          </div>
+        </div>
+        <div class="appt-card-right">
+          <span class="badge badge-${a.status}">${a.status}</span>
+        </div>
+      </div>`).join('') : '<div class="empty-state">No appointments found.</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function loadEmpLeaves() {
+  if (!CURRENT_STAFF_ID) return;
+  try {
+    const leaves = await api('GET', `/employee/${CURRENT_STAFF_ID}/leaves`);
+    document.getElementById('empLeaveHistory').innerHTML = leaves.length ? leaves.map(l => `
+      <div class="leave-card" style="margin-bottom:8px">
+        <div class="leave-info">
+          <div class="leave-meta">📅 ${l.leave_date}</div>
+          ${l.reason ? `<div class="leave-reason">"${l.reason}"</div>` : ''}
+        </div>
+        <span class="emp-leave-status emp-leave-${l.status}">${l.status}</span>
+      </div>`).join('') : '<div class="empty-state">No leave history.</div>';
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function submitEmpLeave() {
+  if (!CURRENT_STAFF_ID) return;
+  const date = document.getElementById('empLeaveDate').value;
+  const reason = document.getElementById('empLeaveReason').value;
+  if (!date) { toast('Select a leave date', 'err'); return; }
+  try {
+    await api('POST', '/leave', { staff_id: CURRENT_STAFF_ID, leave_date: date, reason });
+    toast('Leave request submitted');
+    document.getElementById('empLeaveDate').value = '';
+    document.getElementById('empLeaveReason').value = '';
+    loadEmpLeaves();
+  } catch (e) { toast(e.message, 'err'); }
+}
+</script>
+</body>
+</html>
