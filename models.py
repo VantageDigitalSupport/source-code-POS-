@@ -30,11 +30,6 @@ special_day_staff = Table(
 #  CORE MODELS
 # ══════════════════════════════════════════════
 
-class User(Base):
-    __tablename__ = "users"
-    id              = Column(Integer, primary_key=True, index=True)
-    username        = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
 
 class Product(Base):
     __tablename__ = "products"
@@ -78,6 +73,15 @@ class Staff(Base):
     notes          = relationship(
         "CustomerNote", back_populates="staff",
         cascade="all, delete-orphan")
+
+class User(Base):
+    __tablename__ = "users"
+    id              = Column(Integer, primary_key=True, index=True)
+    username        = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role            = Column(String, default="admin")
+    staff_id        = Column(Integer, ForeignKey("staff.id"), nullable=True)
+
 
 class Service(Base):
     __tablename__ = "services"
@@ -159,6 +163,7 @@ class LeaveRequest(Base):
     staff_id   = Column(Integer, ForeignKey("staff.id"))
     leave_date = Column(DateTime)
     reason     = Column(String, nullable=True)
+    status     = Column(String, default="pending")   # NEW: pending/approved/rejected
     created_at = Column(DateTime, default=datetime.utcnow)
     staff      = relationship("Staff", back_populates="leave_requests")
 
