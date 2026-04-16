@@ -584,12 +584,12 @@
     </div>
     <div class="topbar-right">
       <div class="topbar-theme">
-        <span style="font-size:14px">☀️</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="themeToggle" onchange="toggleTheme()" />
-          <span class="toggle-track"></span>
-        </label>
         <span style="font-size:14px">🌙</span>
+	<label class="toggle-switch">
+  			<input type="checkbox" id="themeToggle" onchange="toggleTheme()" />
+  			<span class="toggle-track"></span>
+	</label>
+	<span style="font-size:14px">☀️</span>
       </div>
       <div class="topbar-divider"></div>
       <button class="logout-btn" onclick="confirmLogout()">
@@ -1260,7 +1260,10 @@
     <label class="field-label">Service Name</label>
     <input id="serviceName" class="field" placeholder="e.g. Balayage" />
     <label class="field-label">Category</label>
-    <input id="serviceCategory" class="field" placeholder="e.g. Hair Colouring" />
+<select id="serviceCategory" class="field">
+  <option value="">Select category…</option>
+</select>
+
     <label class="field-label">Description</label>
     <textarea id="serviceDesc" class="field" rows="2" placeholder="Brief description…"></textarea>
     <div class="two-col">
@@ -1581,6 +1584,17 @@ function showView(name) {
   const el = document.getElementById(`view-${name}`);
   if (el) el.classList.add('active');
   document.getElementById('topbarTitle').textContent = VIEW_TITLES[name] || name;
+
+  // FIX: Update active nav item
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(item => {
+    const onclick = item.getAttribute('onclick') || '';
+    if (onclick.includes(`'${name}'`)) {
+      item.classList.add('active');
+    }
+  });
+
   if (VIEW_LOADERS[name]) VIEW_LOADERS[name]();
 }
 
@@ -2025,27 +2039,66 @@ async function loadServices() {
       </div>`).join('') : '<div class="empty-state" style="grid-column:1/-1">No services yet.</div>';
   } catch (e) { toast(e.message, 'err'); }
 }
-function openAddService() {
+async function openAddService() {
   document.getElementById('serviceEditId').value = '';
   document.getElementById('serviceModalTitle').textContent = 'Add Service';
-  ['serviceName', 'serviceCategory', 'serviceDesc', 'serviceDuration', 'servicePrice'].forEach(id => document.getElementById(id).value = '');
+  ['serviceName', 'serviceDesc', 'serviceDuration', 'servicePrice'].forEach(id => document.getElementById(id).value = '');
+  
+  // Load categories from specialty mapping
+  try {
+    const settings = await api('GET', '/settings');
+    const mapping = settings.specialty_mapping;
+    const categories = new Set();
+    Object.values(mapping).forEach(val => {
+      if (val && val !== 'ALL') {
+        val.split(',').forEach(c => {
+          const trimmed = c.trim();
+          if (trimmed) categories.add(trimmed);
+        });
+      }
+    });
+    const catSelect = document.getElementById('serviceCategory');
+    catSelect.innerHTML = '<option value="">Select category…</option>' +
+      [...categories].sort().map(c => `<option value="${c}">${c}</option>`).join('');
+  } catch(e) { console.error(e); }
+  
   document.getElementById('serviceOverlay').classList.add('open');
 }
+
 async function openEditService(id) {
   try {
-    const services = await api('GET', '/services');
+    const [services, settings] = await Promise.all([
+      api('GET', '/services'),
+      api('GET', '/settings')
+    ]);
     const s = services.find(x => x.id === id);
     if (!s) return;
+    
+    // Populate category dropdown
+    const mapping = settings.specialty_mapping;
+    const categories = new Set();
+    Object.values(mapping).forEach(val => {
+      if (val && val !== 'ALL') {
+        val.split(',').forEach(c => {
+          const trimmed = c.trim();
+          if (trimmed) categories.add(trimmed);
+        });
+      }
+    });
+    const catSelect = document.getElementById('serviceCategory');
+    catSelect.innerHTML = '<option value="">Select category…</option>' +
+      [...categories].sort().map(c => `<option value="${c}" ${c === s.category ? 'selected' : ''}>${c}</option>`).join('');
+    
     document.getElementById('serviceEditId').value = id;
     document.getElementById('serviceModalTitle').textContent = 'Edit Service';
     document.getElementById('serviceName').value = s.name;
-    document.getElementById('serviceCategory').value = s.category || '';
     document.getElementById('serviceDesc').value = s.description || '';
     document.getElementById('serviceDuration').value = s.duration;
     document.getElementById('servicePrice').value = s.price;
     document.getElementById('serviceOverlay').classList.add('open');
   } catch (e) { toast(e.message, 'err'); }
 }
+
 function closeServiceModal() { document.getElementById('serviceOverlay').classList.remove('open'); }
 async function saveService() {
   const id = document.getElementById('serviceEditId').value;
@@ -2219,27 +2272,46 @@ async function loadStaff() {
       </tr>`).join('') : '<tr><td colspan="7" class="empty-state">No staff members.</td></tr>';
   } catch (e) { toast(e.message, 'err'); }
 }
-function openAddStaff() {
+async function openAddStaff() {
   document.getElementById('staffEditId').value = '';
   document.getElementById('staffModalTitle').textContent = 'Add Staff Member';
-  ['staffName','staffRole','staffPhone','staffEmail','staffSpecialties'].forEach(id => document.getElementById(id).value = '');
+  ['staffName','staffPhone','staffEmail','staffSpecialties'].forEach(id => document.getElementById(id).value = '');
+  
+  // Load roles from settings
+  try {
+    const data = await api('GET', '/settings/roles');
+    const roleSelect = document.getElementById('staffRole');
+    roleSelect.innerHTML = '<option value="">Select role…</option>' +
+      data.roles.map(r => `<option value="${r}">${r}</option>`).join('');
+  } catch(e) { console.error(e); }
+  
   document.getElementById('staffOverlay').classList.add('open');
 }
+
 async function openEditStaff(id) {
   try {
-    const staff = await api('GET', '/staff');
+    const [staff, rolesData] = await Promise.all([
+      api('GET', '/staff'),
+      api('GET', '/settings/roles')
+    ]);
     const s = staff.find(x => x.id === id);
     if (!s) return;
+    
+    // Populate role dropdown
+    const roleSelect = document.getElementById('staffRole');
+    roleSelect.innerHTML = '<option value="">Select role…</option>' +
+      rolesData.roles.map(r => `<option value="${r}" ${r === s.role ? 'selected' : ''}>${r}</option>`).join('');
+    
     document.getElementById('staffEditId').value = id;
     document.getElementById('staffModalTitle').textContent = 'Edit Staff';
     document.getElementById('staffName').value = s.name;
-    document.getElementById('staffRole').value = s.role;
     document.getElementById('staffPhone').value = s.phone || '';
     document.getElementById('staffEmail').value = s.email || '';
     document.getElementById('staffSpecialties').value = s.specialties || '';
     document.getElementById('staffOverlay').classList.add('open');
   } catch (e) { toast(e.message, 'err'); }
 }
+
 function closeStaffModal() { document.getElementById('staffOverlay').classList.remove('open'); }
 async function saveStaff() {
   const id = document.getElementById('staffEditId').value;
