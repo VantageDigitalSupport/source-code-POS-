@@ -19,6 +19,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="UniPOS Professional")
+
+from fastapi.responses import FileResponse
+
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    return FileResponse("index.html")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
@@ -29,8 +36,10 @@ app.add_middleware(
 # ══════════════════════════════════════════════
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username:  str
+    password:  str
+    role:      Optional[str] = "staff"   # NEW: admin / staff
+    staff_id:  Optional[int] = None      # NEW: link to staff member
 
 class ProductCreate(BaseModel):
     name:           str
@@ -66,12 +75,12 @@ class SaleCreate(BaseModel):
 
 class AppointmentCreate(BaseModel):
     service_ids:  List[int]
-    scheduled_at: str                    # "YYYY-MM-DD HH:MM"
+    scheduled_at: str
     customer_id:  Optional[int]  = None
     staff_id:     Optional[int]  = None
     notes:        Optional[str]  = None
     booking_type: Optional[str]  = "online"
-    duration:     Optional[int]  = None  # admin override
+    duration:     Optional[int]  = None
     guest_name:   Optional[str]  = None
     guest_phone:  Optional[str]  = None
     guest_email:  Optional[str]  = None
@@ -85,17 +94,17 @@ class AppointmentUpdate(BaseModel):
 
 class AttendanceCreate(BaseModel):
     staff_id:   int
-    date:       str    # "YYYY-MM-DD"
+    date:       str
     is_present: bool
 
 class StaffScheduleCreate(BaseModel):
     staff_id:    int
-    day_of_week: int   # 0=Mon … 6=Sun
+    day_of_week: int
     is_working:  bool
 
 class LeaveCreate(BaseModel):
     staff_id:   int
-    leave_date: str    # "YYYY-MM-DD"
+    leave_date: str
     reason:     Optional[str] = None
 
 class CustomerNoteCreate(BaseModel):
@@ -106,24 +115,27 @@ class SalonSettingsUpdate(BaseModel):
     slot_buffer:       Optional[int] = None
     specialty_mapping: Optional[str] = None
 
-# ── Day schedule schemas ──
 class DayScheduleUpdate(BaseModel):
     day_of_week: int
     is_open:     bool
-    open_time:   Optional[str] = None   # "HH:MM"
-    close_time:  Optional[str] = None   # "HH:MM"
+    open_time:   Optional[str] = None
+    close_time:  Optional[str] = None
 
 class WeeklyScheduleUpdate(BaseModel):
     days: List[DayScheduleUpdate]
 
-# ── Special day schemas ──
 class SpecialDayCreate(BaseModel):
-    date:       str              # "YYYY-MM-DD"
+    date:       str
     is_open:    bool
-    open_time:  Optional[str]  = None
-    close_time: Optional[str]  = None
-    note:       Optional[str]  = None
-    staff_ids:  Optional[List[int]] = []   # staff working this day
+    open_time:  Optional[str]       = None
+    close_time: Optional[str]       = None
+    note:       Optional[str]       = None
+    staff_ids:  Optional[List[int]] = []
+
+# ── NEW: Change password schema ──
+class ChangePasswordRequest(BaseModel):
+    username: str
+    password: str
 
 # ══════════════════════════════════════════════
 #  HELPERS
@@ -146,6 +158,15 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
+# ── NEW: Admin-only guard ──
+def require_admin(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+    return current_user
+
 def generate_reference() -> str:
     chars = string.ascii_uppercase + string.digits
     return "BK-" + "".join(random.choices(chars, k=5))
@@ -158,10 +179,6 @@ def get_or_create_settings(db: Session) -> models.SalonSettings:
     return s
 
 def get_day_schedule(db: Session) -> dict:
-    """
-    Returns dict keyed by day_of_week (0-6).
-    Falls back to sensible defaults if not configured.
-    """
     rows = db.query(models.DaySchedule).all()
     defaults = {
         0: {"is_open": True,  "open_time": "09:00", "close_time": "17:00"},
@@ -180,15 +197,7 @@ def get_day_schedule(db: Session) -> dict:
         }
     return defaults
 
-def get_hours_for_date(
-    check_date: date, db: Session
-) -> dict:
-    """
-    Returns effective hours for a specific date.
-    Special day overrides weekly schedule.
-    Returns: {is_open, open_time, close_time}
-    """
-    # Check special day first
+def get_hours_for_date(check_date: date, db: Session) -> dict:
     special = db.query(models.SpecialDay).filter(
         func.date(models.SpecialDay.date) == check_date
     ).first()
@@ -199,9 +208,7 @@ def get_hours_for_date(
             "close_time": special.close_time,
             "is_special": True,
         }
-    # Fall back to weekly schedule
-    # JS getDay: 0=Sun → our system: 6=Sun
-    js_day  = check_date.weekday()  # 0=Mon already in Python
+    js_day  = check_date.weekday()
     sched   = get_day_schedule(db)
     day_cfg = sched.get(js_day, {"is_open": False})
     return {
@@ -248,15 +255,14 @@ def is_staff_available(
 
 def is_staff_on_leave(staff_id: int, check_date: date, db: Session) -> bool:
     for l in db.query(models.LeaveRequest).filter(
-        models.LeaveRequest.staff_id == staff_id
+        models.LeaveRequest.staff_id == staff_id,
+        models.LeaveRequest.status   == "approved"   # NEW: only approved leaves count
     ).all():
         if l.leave_date.date() == check_date:
             return True
     return False
 
-def is_staff_scheduled(
-    staff_id: int, check_date: date, db: Session
-) -> bool:
+def is_staff_scheduled(staff_id: int, check_date: date, db: Session) -> bool:
     day = check_date.weekday()
     s = db.query(models.StaffSchedule).filter(
         models.StaffSchedule.staff_id    == staff_id,
@@ -264,9 +270,7 @@ def is_staff_scheduled(
     ).first()
     return s.is_working if s else True
 
-def check_attendance(
-    staff_id: int, check_date: date, db: Session
-) -> bool:
+def check_attendance(staff_id: int, check_date: date, db: Session) -> bool:
     for r in db.query(models.Attendance).filter(
         models.Attendance.staff_id == staff_id
     ).all():
@@ -302,7 +306,12 @@ def _format_appointment(a: models.Appointment) -> dict:
         "staff":        a.staff.name if a.staff else "Unassigned",
         "staff_id":     a.staff_id,
         "services":     [
-            {"id": s.id, "name": s.name, "duration": s.duration}
+            {
+                "id":       s.id,
+                "name":     s.name,
+                "duration": s.duration,
+                "price":    s.price,      # NEW: include price for auto-sale
+            }
             for s in a.services
         ],
         "scheduled_at": a.scheduled_at.strftime("%Y-%m-%d %H:%M")
@@ -320,23 +329,52 @@ def _format_appointment(a: models.Appointment) -> dict:
 # ══════════════════════════════════════════════
 
 @app.post("/auth/signup", tags=["Auth"])
-def signup(user: UserCreate, db: Session = Depends(get_db)):
+def signup(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Only admins can create accounts")
+
     if db.query(models.User).filter(
         models.User.username == user.username
     ).first():
         raise HTTPException(400, "Username already registered")
-    db.add(models.User(
+
+    staff_name = None
+    if user.staff_id:
+        staff = db.query(models.Staff).filter(
+            models.Staff.id == user.staff_id
+        ).first()
+        if not staff:
+            raise HTTPException(404, "Staff member not found")
+        staff_name = staff.name
+
+    new_user = models.User(
         username=user.username,
-        hashed_password=pwd_context.hash(user.password)
-    ))
+        hashed_password=pwd_context.hash(user.password),
+        role=user.role or "staff",
+        staff_id=user.staff_id
+    )
+    db.add(new_user)
     db.commit()
-    return {"message": "User created successfully"}
+    return {
+        "message":    "Account created successfully",
+        "username":   user.username,
+        "role":       user.role,
+        "staff_name": staff_name
+    }
 
 @app.post("/auth/login", tags=["Auth"])
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    """
+    NEW: Returns role + staff_id + staff_name in response
+    so frontend can route to correct dashboard.
+    """
     user = db.query(models.User).filter(
         models.User.username == form_data.username
     ).first()
@@ -344,29 +382,90 @@ def login(
         form_data.password, user.hashed_password
     ):
         raise HTTPException(401, "Invalid credentials")
+
     token = jwt.encode(
-        {"sub": user.username,
-         "exp": datetime.utcnow() + timedelta(hours=24)},
+        {
+            "sub": user.username,
+            "exp": datetime.utcnow() + timedelta(hours=24)
+        },
         SECRET_KEY, algorithm=ALGORITHM
     )
-    return {"access_token": token, "token_type": "bearer"}
+
+    # Get linked staff info if exists
+    staff_name = None
+    if user.staff_id:
+        staff = db.query(models.Staff).filter(
+            models.Staff.id == user.staff_id
+        ).first()
+        if staff:
+            staff_name = staff.name
+
+    return {
+        "access_token": token,
+        "token_type":   "bearer",
+        "role":         user.role or "admin",
+        "staff_id":     user.staff_id,
+        "staff_name":   staff_name,
+    }
 
 @app.put("/auth/change-password", tags=["Auth"])
 def change_password(
-    user: UserCreate,
+    payload: ChangePasswordRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     db_user = db.query(models.User).filter(
-        models.User.username == user.username
+        models.User.username == payload.username
     ).first()
     if not db_user:
         raise HTTPException(404, "User not found")
     if db_user.username != current_user.username:
         raise HTTPException(403, "You can only change your own password")
-    db_user.hashed_password = pwd_context.hash(user.password)
+    db_user.hashed_password = pwd_context.hash(payload.password)
     db.commit()
     return {"message": "Password updated successfully"}
+
+# ── NEW: List all accounts (admin only) ──
+@app.get("/auth/accounts", tags=["Auth"])
+def list_accounts(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    users = db.query(models.User).all()
+    result = []
+    for u in users:
+        staff_name = None
+        if u.staff_id:
+            staff = db.query(models.Staff).filter(
+                models.Staff.id == u.staff_id
+            ).first()
+            if staff:
+                staff_name = staff.name
+        result.append({
+            "username":   u.username,
+            "role":       u.role or "admin",
+            "staff_id":   u.staff_id,
+            "staff_name": staff_name,
+        })
+    return result
+
+# ── NEW: Delete account (admin only) ──
+@app.delete("/auth/accounts/{username}", tags=["Auth"])
+def delete_account(
+    username: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    if username == current_user.username:
+        raise HTTPException(400, "Cannot delete your own account")
+    user = db.query(models.User).filter(
+        models.User.username == username
+    ).first()
+    if not user:
+        raise HTTPException(404, "Account not found")
+    db.delete(user)
+    db.commit()
+    return {"message": f"Account '{username}' deleted"}
 
 # ══════════════════════════════════════════════
 #  INVENTORY
@@ -391,7 +490,8 @@ def create_product(
 
 @app.put("/products/{pid}", tags=["Inventory"])
 def update_product(
-    pid: int, product: ProductCreate,
+    pid: int,
+    product: ProductCreate,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -407,19 +507,39 @@ def update_product(
 @app.delete("/products/{pid}", tags=["Inventory"])
 def delete_product(
     pid: int,
+    force: bool = Query(False),   # NEW: ?force=true = hard delete
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
+    """
+    BUG FIX + NEW:
+    - Default: soft deactivate if has sales history
+    - ?force=true: permanently remove regardless of history
+    """
     p = db.query(models.Product).filter(
         models.Product.id == pid).first()
     if not p:
         raise HTTPException(404, "Product not found")
-    if db.query(models.Sale).filter(
+
+    has_sales = db.query(models.Sale).filter(
         models.Sale.product_id == pid
-    ).count() > 0:
-        p.is_active = False; db.commit()
+    ).count() > 0
+
+    if force:
+        # Hard delete — remove from inventory completely
+        db.delete(p)
+        db.commit()
+        return {"message": "Product permanently removed from inventory"}
+
+    if has_sales:
+        # Soft delete — keep for sales history integrity
+        p.is_active = False
+        db.commit()
         return {"message": "Product deactivated (has sales history)"}
-    db.delete(p); db.commit()
+
+    # No sales — safe to delete
+    db.delete(p)
+    db.commit()
     return {"message": "Product deleted"}
 
 # ══════════════════════════════════════════════
@@ -460,8 +580,6 @@ def delete_customer(
     db.delete(c); db.commit()
     return {"message": "Customer deleted"}
 
-# ── Customer profile endpoints ──
-
 @app.get("/customers/{cid}/history", tags=["Customers"])
 def customer_history(
     cid: int,
@@ -473,16 +591,16 @@ def customer_history(
     ).order_by(models.Appointment.scheduled_at.desc()).all()
     return [
         {
-            "id":          a.id,
-            "reference":   a.reference,
-            "date":        a.scheduled_at.strftime("%Y-%m-%d")
-                           if a.scheduled_at else "",
+            "id":           a.id,
+            "reference":    a.reference,
+            "date":         a.scheduled_at.strftime("%Y-%m-%d")
+                            if a.scheduled_at else "",
             "scheduled_at": a.scheduled_at.strftime("%Y-%m-%d %H:%M")
                             if a.scheduled_at else "",
-            "services":    ", ".join(s.name for s in a.services),
-            "staff":       a.staff.name if a.staff else "—",
-            "status":      a.status,
-            "duration":    a.duration,
+            "services":     ", ".join(s.name for s in a.services),
+            "staff":        a.staff.name if a.staff else "—",
+            "status":       a.status,
+            "duration":     a.duration,
         }
         for a in appts
     ]
@@ -497,28 +615,22 @@ def customer_stats(
         models.Customer.id == cid).first()
     if not c:
         raise HTTPException(404, "Customer not found")
-
-    appts = db.query(models.Appointment).filter(
-        models.Appointment.customer_id == cid
-    ).all()
+    appts     = db.query(models.Appointment).filter(
+        models.Appointment.customer_id == cid).all()
     completed = [a for a in appts if a.status == "completed"]
-    sales = db.query(models.Sale).filter(
-        models.Sale.customer_id == cid
-    ).all()
+    sales      = db.query(models.Sale).filter(
+        models.Sale.customer_id == cid).all()
     total_spent = sum(s.total_amount for s in sales)
-
-    last_visit = None
+    last_visit  = None
     if completed:
         last_visit = max(
             a.scheduled_at for a in completed
         ).strftime("%Y-%m-%d")
-
     member_since = None
     if appts:
         member_since = min(
             a.created_at for a in appts
         ).strftime("%Y-%m-%d")
-
     return {
         "customer_id":        cid,
         "name":               c.name,
@@ -624,7 +736,8 @@ def create_staff(
 
 @app.put("/staff/{sid}", tags=["Staff"])
 def update_staff(
-    sid: int, staff: StaffCreate,
+    sid: int,
+    staff: StaffCreate,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -677,9 +790,8 @@ def get_staff_schedule(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    rows = db.query(models.StaffSchedule).filter(
-        models.StaffSchedule.staff_id == sid
-    ).all()
+    rows  = db.query(models.StaffSchedule).filter(
+        models.StaffSchedule.staff_id == sid).all()
     names = ["Monday","Tuesday","Wednesday",
              "Thursday","Friday","Saturday","Sunday"]
     return [
@@ -752,7 +864,8 @@ def create_service(
 
 @app.put("/services/{sid}", tags=["Services"])
 def update_service(
-    sid: int, service: ServiceCreate,
+    sid: int,
+    service: ServiceCreate,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -817,8 +930,8 @@ def make_sale(
         if not p:
             raise HTTPException(404, "Product not found")
         if p.stock_quantity < sale.quantity:
-            raise HTTPException(400,
-                f"Insufficient stock. Available: {p.stock_quantity}")
+            raise HTTPException(
+                400, f"Insufficient stock. Available: {p.stock_quantity}")
         total = p.price * sale.quantity
         p.stock_quantity -= sale.quantity
     elif sale.service_id:
@@ -831,22 +944,57 @@ def make_sale(
         total = s.price * sale.quantity
     else:
         raise HTTPException(400, "Provide product_id or service_id")
+
     n = models.Sale(
-        product_id=sale.product_id, service_id=sale.service_id,
-        customer_id=sale.customer_id, quantity=sale.quantity,
+        product_id=sale.product_id,
+        service_id=sale.service_id,
+        customer_id=sale.customer_id,
+        quantity=sale.quantity,
         total_amount=total
     )
-    db.add(n); db.commit(); db.refresh(n)
-    return {"message": "Sale successful",
-            "total_amount": total, "sale_id": n.id}
+    db.add(n)
+    db.commit()
+    if sale.product_id:
+        db.refresh(p)  # Refresh product to reflect new stock
+    db.refresh(n)
+
+    return {
+        "message":      "Sale successful",
+        "total_amount": total,
+        "sale_id":      n.id
+    }
 
 @app.get("/sales/history", tags=["Sales"])
 def get_sales_history(
+    date_from: Optional[str] = None,   # NEW: filter by date
+    date_to:   Optional[str] = None,   # NEW: optional end date
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    sales = db.query(models.Sale).order_by(
-        models.Sale.timestamp.desc()).all()
+    """
+    NEW: Supports date filtering.
+    ?date_from=YYYY-MM-DD          → from that date to now
+    ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD → date range
+    """
+    q = db.query(models.Sale).order_by(models.Sale.timestamp.desc())
+
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d")
+            q  = q.filter(models.Sale.timestamp >= df)
+        except ValueError:
+            raise HTTPException(400, "Use YYYY-MM-DD for date_from")
+
+    if date_to:
+        try:
+            dt = datetime.strptime(date_to, "%Y-%m-%d")
+            # Include the full day_to
+            dt = dt.replace(hour=23, minute=59, second=59)
+            q  = q.filter(models.Sale.timestamp <= dt)
+        except ValueError:
+            raise HTTPException(400, "Use YYYY-MM-DD for date_to")
+
+    sales = q.all()
     return [
         {
             "id":       s.id,
@@ -880,9 +1028,10 @@ def list_appointments(
                 func.date(models.Appointment.scheduled_at) == fd)
         except ValueError:
             raise HTTPException(400, "Use YYYY-MM-DD")
-    return [_format_appointment(a)
-            for a in q.order_by(
-                models.Appointment.scheduled_at).all()]
+    return [
+        _format_appointment(a)
+        for a in q.order_by(models.Appointment.scheduled_at).all()
+    ]
 
 @app.get("/appointments/today", tags=["Appointments"])
 def todays_appointments(
@@ -897,29 +1046,26 @@ def todays_appointments(
 
 @app.get("/appointments/slots/available", tags=["Appointments"])
 def get_available_slots(
-    date: str = Query(...),
+    date:        str = Query(...),
     service_ids: str = Query(...),
-    db: Session = Depends(get_db)
+    db:          Session = Depends(get_db)
 ):
     """
+    BUG FIX: Past slots for today are now marked as unavailable.
     Public endpoint — no auth required.
-    Returns all 30-min slots for a date, marked free/taken.
-    Respects special day overrides and weekly schedule.
     """
     try:
         check_date = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(400, "Use YYYY-MM-DD")
 
-    # Max 1 year ahead
     if check_date > (datetime.utcnow() + timedelta(days=365)).date():
         raise HTTPException(400, "Cannot book more than 1 year ahead")
 
-    svc_ids = [int(x) for x in service_ids.split(",") if x.strip()]
+    svc_ids  = [int(x) for x in service_ids.split(",") if x.strip()]
     settings = get_or_create_settings(db)
+    hours    = get_hours_for_date(check_date, db)
 
-    # Get effective hours for this date
-    hours = get_hours_for_date(check_date, db)
     if not hours["is_open"]:
         return {
             "date":    date,
@@ -929,7 +1075,6 @@ def get_available_slots(
 
     total_duration = calculate_duration(svc_ids, db, settings.slot_buffer)
 
-    # Service categories for staff matching
     categories = []
     for sid in svc_ids:
         svc = db.query(models.Service).filter(
@@ -938,9 +1083,8 @@ def get_available_slots(
             categories.append(svc.category)
 
     specialty_mapping = json.loads(settings.specialty_mapping)
-    is_future = check_date > datetime.utcnow().date()
+    is_future         = check_date > datetime.utcnow().date()
 
-    # Get special day staff override if applicable
     special = db.query(models.SpecialDay).filter(
         func.date(models.SpecialDay.date) == check_date,
         models.SpecialDay.is_open == True
@@ -949,23 +1093,42 @@ def get_available_slots(
     all_staff = db.query(models.Staff).filter(
         models.Staff.is_active == True).all()
 
-    # If special day — only selected staff are available
-    if special and special.staff:
-        available_staff_pool = special.staff
-    else:
-        available_staff_pool = all_staff
+    available_staff_pool = (
+        special.staff if (special and special.staff) else all_staff
+    )
 
-    # Parse hours
     oh, om = map(int, hours["open_time"].split(":"))
     ch, cm = map(int, hours["close_time"].split(":"))
 
     slots  = []
-    cursor = datetime.combine(check_date,
-                              datetime.min.time().replace(hour=oh, minute=om))
-    close  = datetime.combine(check_date,
-                              datetime.min.time().replace(hour=ch, minute=cm))
+    cursor = datetime.combine(
+        check_date,
+        datetime.min.time().replace(hour=oh, minute=om)
+    )
+    close  = datetime.combine(
+        check_date,
+        datetime.min.time().replace(hour=ch, minute=cm)
+    )
+
+    # BUG FIX: Get current time for past-slot filtering
+    now_utc  = datetime.utcnow()
+    is_today = check_date == now_utc.date()
 
     while cursor + timedelta(minutes=total_duration) <= close:
+
+        # BUG FIX: Mark past slots as unavailable
+        is_past = is_today and cursor <= now_utc
+
+        if is_past:
+            slots.append({
+                "time":            cursor.strftime("%H:%M"),
+                "available":       False,
+                "staff_available": 0,
+                "is_past":         True,
+            })
+            cursor += timedelta(minutes=30)
+            continue
+
         capable = 0
         for s in available_staff_pool:
             if not staff_can_do_service(s, categories, specialty_mapping):
@@ -979,10 +1142,12 @@ def get_available_slots(
                 continue
             if is_staff_available(s.id, cursor, total_duration, db):
                 capable += 1
+
         slots.append({
             "time":            cursor.strftime("%H:%M"),
             "available":       capable > 0,
             "staff_available": capable,
+            "is_past":         False,
         })
         cursor += timedelta(minutes=30)
 
@@ -1029,23 +1194,20 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
     except ValueError:
         raise HTTPException(400, "Use YYYY-MM-DD HH:MM")
 
-    # Max 1 year ahead
     if scheduled_at.date() > (
         datetime.utcnow() + timedelta(days=365)
     ).date():
         raise HTTPException(400, "Cannot book more than 1 year ahead")
 
-    # Validate salon is open
     hours = get_hours_for_date(scheduled_at.date(), db)
     if not hours["is_open"]:
         raise HTTPException(400, "Salon is closed on this date")
 
-    # Validate services
-    services    = []
-    categories  = []
+    services   = []
+    categories = []
     for sid in appt.service_ids:
         svc = db.query(models.Service).filter(
-            models.Service.id == sid,
+            models.Service.id    == sid,
             models.Service.is_active == True
         ).first()
         if not svc:
@@ -1054,13 +1216,12 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
         if svc.category and svc.category not in categories:
             categories.append(svc.category)
 
-    settings = get_or_create_settings(db)
+    settings       = get_or_create_settings(db)
     total_duration = (
         appt.duration
         or calculate_duration(appt.service_ids, db, settings.slot_buffer)
     )
 
-    # Customer lookup / creation
     customer_id = appt.customer_id
     if not customer_id and appt.guest_phone:
         existing = db.query(models.Customer).filter(
@@ -1081,12 +1242,10 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
             db.add(nc); db.flush()
             customer_id = nc.id
 
-    # Staff assignment
     specialty_mapping = json.loads(settings.specialty_mapping)
     check_date        = scheduled_at.date()
     is_future         = check_date > datetime.utcnow().date()
 
-    # Check special day staff override
     special = db.query(models.SpecialDay).filter(
         func.date(models.SpecialDay.date) == check_date,
         models.SpecialDay.is_open == True
@@ -1094,15 +1253,14 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
 
     staff_id = appt.staff_id
     if not staff_id:
-        pool = special.staff if (special and special.staff) else \
-               db.query(models.Staff).filter(
-                   models.Staff.is_active == True).all()
-
+        pool = (
+            special.staff if (special and special.staff)
+            else db.query(models.Staff).filter(
+                models.Staff.is_active == True).all()
+        )
         capable = []
         for s in pool:
-            if not staff_can_do_service(
-                s, categories, specialty_mapping
-            ):
+            if not staff_can_do_service(s, categories, specialty_mapping):
                 continue
             if not is_future:
                 if is_staff_on_leave(s.id, check_date, db):
@@ -1119,8 +1277,7 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
 
         assigned = next(
             (s for s in capable
-             if is_staff_available(
-                 s.id, scheduled_at, total_duration, db)),
+             if is_staff_available(s.id, scheduled_at, total_duration, db)),
             None
         )
         if not assigned:
@@ -1137,7 +1294,6 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
             raise HTTPException(
                 400, "Selected staff is not available at this time")
 
-    # Generate unique reference
     ref = generate_reference()
     while db.query(models.Appointment).filter(
         models.Appointment.reference == ref
@@ -1165,7 +1321,8 @@ def _book_appointment(appt: AppointmentCreate, db: Session):
 
 @app.put("/appointments/{aid}", tags=["Appointments"])
 def update_appointment(
-    aid: int, update: AppointmentUpdate,
+    aid: int,
+    update: AppointmentUpdate,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -1214,8 +1371,7 @@ def get_attendance(
     if date_filter:
         try:
             fd = datetime.strptime(date_filter, "%Y-%m-%d").date()
-            q  = q.filter(
-                func.date(models.Attendance.date) == fd)
+            q  = q.filter(func.date(models.Attendance.date) == fd)
         except ValueError:
             raise HTTPException(400, "Use YYYY-MM-DD")
     return [
@@ -1256,15 +1412,52 @@ def mark_attendance(
     return {"message": "Attendance marked",
             "is_present": record.is_present}
 
+@app.get("/attendance/report", tags=["Attendance"])
+def attendance_report(
+    month: str = Query(...),   # "YYYY-MM"
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    try:
+        year, mon = map(int, month.split("-"))
+    except ValueError:
+        raise HTTPException(400, "Use YYYY-MM")
+
+    staff_list = db.query(models.Staff).filter(
+        models.Staff.is_active == True).all()
+
+    result = []
+    for s in staff_list:
+        records = db.query(models.Attendance).filter(
+            models.Attendance.staff_id == s.id
+        ).all()
+        month_records = [
+            r for r in records
+            if r.date.year == year and r.date.month == mon
+        ]
+        present_days = sum(1 for r in month_records if r.is_present)
+        working_days = len(month_records)
+        result.append({
+            "staff_id":     s.id,
+            "name":         s.name,
+            "role":         s.role,
+            "present_days": present_days,
+            "working_days": working_days,
+        })
+    return result
+
 # ══════════════════════════════════════════════
-#  LEAVE REQUESTS
+#  LEAVE REQUESTS — UPDATED WITH STATUS
 # ══════════════════════════════════════════════
 
-@app.get("/leaves", tags=["Leave"])
+@app.get("/leave", tags=["Leave"])
 def list_leaves(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
+    """
+    NEW: Returns status field (pending/approved/rejected)
+    """
     return [
         {
             "id":         l.id,
@@ -1272,11 +1465,15 @@ def list_leaves(
             "staff_name": l.staff.name if l.staff else "",
             "leave_date": l.leave_date.strftime("%Y-%m-%d"),
             "reason":     l.reason or "",
+            "status":     l.status or "pending",   # NEW
+            "created_at": l.created_at.strftime("%Y-%m-%d")
+                          if l.created_at else "",
         }
-        for l in db.query(models.LeaveRequest).all()
+        for l in db.query(models.LeaveRequest).order_by(
+            models.LeaveRequest.leave_date.desc()).all()
     ]
 
-@app.post("/leaves", tags=["Leave"])
+@app.post("/leave", tags=["Leave"])
 def add_leave(
     leave: LeaveCreate,
     db: Session = Depends(get_db),
@@ -1286,21 +1483,37 @@ def add_leave(
         ld = datetime.strptime(leave.leave_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(400, "Use YYYY-MM-DD")
+
+    # Check for duplicate leave request
+    existing = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.staff_id   == leave.staff_id,
+        func.date(models.LeaveRequest.leave_date) == ld.date()
+    ).first()
+    if existing:
+        raise HTTPException(
+            400, "Leave request already exists for this date")
+
     affected = db.query(models.Appointment).filter(
         models.Appointment.staff_id == leave.staff_id,
         func.date(models.Appointment.scheduled_at) == ld.date(),
         models.Appointment.status == "scheduled"
     ).all()
-    db.add(models.LeaveRequest(
+
+    new_leave = models.LeaveRequest(
         staff_id=leave.staff_id,
-        leave_date=ld, reason=leave.reason
-    ))
+        leave_date=ld,
+        reason=leave.reason,
+        status="pending"   # NEW: starts as pending
+    )
+    db.add(new_leave)
     db.commit()
+
     return {
-        "message":                "Leave recorded",
-        "affected_appointments":  len(affected),
+        "message":               "Leave request submitted",
+        "status":                "pending",
+        "affected_appointments": len(affected),
         "warning": (
-            f"{len(affected)} appointment(s) affected. "
+            f"{len(affected)} appointment(s) on this date. "
             "Please reassign or notify customers."
             if affected else None
         ),
@@ -1316,7 +1529,103 @@ def add_leave(
         ],
     }
 
-@app.delete("/leaves/{lid}", tags=["Leave"])
+# ── NEW: Approve Leave ──
+@app.put("/leave/{lid}/approve", tags=["Leave"])
+def approve_leave(
+    lid: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    """
+    NEW: Approves leave request.
+    - Sets status → approved
+    - Auto-marks attendance as absent for that day
+    - Returns list of affected appointments for admin warning
+    """
+    l = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.id == lid).first()
+    if not l:
+        raise HTTPException(404, "Leave request not found")
+    if l.status == "approved":
+        raise HTTPException(400, "Leave already approved")
+
+    l.status = "approved"
+
+    # Auto-mark attendance as absent
+    leave_date = l.leave_date.date()
+    att_date_str = leave_date.strftime("%Y-%m-%d")
+    att_dt       = datetime.strptime(att_date_str, "%Y-%m-%d")
+
+    existing_att = None
+    for r in db.query(models.Attendance).filter(
+        models.Attendance.staff_id == l.staff_id
+    ).all():
+        if r.date.date() == leave_date:
+            existing_att = r
+            break
+
+    if existing_att:
+        existing_att.is_present = False
+    else:
+        db.add(models.Attendance(
+            staff_id=l.staff_id,
+            date=att_dt,
+            is_present=False
+        ))
+
+    # Find affected appointments
+    affected = db.query(models.Appointment).filter(
+        models.Appointment.staff_id == l.staff_id,
+        func.date(models.Appointment.scheduled_at) == leave_date,
+        models.Appointment.status.in_(["scheduled", "confirmed"])
+    ).all()
+
+    db.commit()
+
+    return {
+        "message":  "Leave approved",
+        "staff_id": l.staff_id,
+        "date":     att_date_str,
+        "affected_appointments": [
+            {
+                "id":        a.id,
+                "reference": a.reference,
+                "customer":  (a.customer.name if a.customer
+                              else a.guest_name or "Guest"),
+                "time":      a.scheduled_at.strftime("%H:%M"),
+                "status":    a.status,
+            }
+            for a in affected
+        ],
+    }
+
+# ── NEW: Reject Leave ──
+@app.put("/leave/{lid}/reject", tags=["Leave"])
+def reject_leave(
+    lid: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    """
+    NEW: Rejects leave request.
+    Sets status → rejected.
+    """
+    l = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.id == lid).first()
+    if not l:
+        raise HTTPException(404, "Leave request not found")
+    if l.status == "rejected":
+        raise HTTPException(400, "Leave already rejected")
+
+    l.status = "rejected"
+    db.commit()
+    return {
+        "message":  "Leave rejected",
+        "staff_id": l.staff_id,
+        "date":     l.leave_date.strftime("%Y-%m-%d"),
+    }
+
+@app.delete("/leave/{lid}", tags=["Leave"])
 def remove_leave(
     lid: int,
     db: Session = Depends(get_db),
@@ -1328,6 +1637,81 @@ def remove_leave(
         raise HTTPException(404, "Leave not found")
     db.delete(l); db.commit()
     return {"message": "Leave removed"}
+
+# ══════════════════════════════════════════════
+#  EMPLOYEE-SPECIFIC ENDPOINTS — NEW
+# ══════════════════════════════════════════════
+
+@app.get("/employee/{staff_id}/appointments", tags=["Employee"])
+def employee_appointments(
+    staff_id: int,
+    date:     Optional[str] = None,
+    db:       Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    """
+    NEW: Returns appointments assigned to a specific staff member.
+    Optional ?date=YYYY-MM-DD to filter by day.
+    """
+    q = db.query(models.Appointment).filter(
+        models.Appointment.staff_id == staff_id
+    )
+    if date:
+        try:
+            fd = datetime.strptime(date, "%Y-%m-%d").date()
+            q  = q.filter(
+                func.date(models.Appointment.scheduled_at) == fd)
+        except ValueError:
+            raise HTTPException(400, "Use YYYY-MM-DD")
+    appts = q.order_by(models.Appointment.scheduled_at).all()
+    return [_format_appointment(a) for a in appts]
+
+@app.get("/employee/{staff_id}/leaves", tags=["Employee"])
+def employee_leaves(
+    staff_id: int,
+    db:       Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    """
+    NEW: Returns leave requests for a specific staff member
+    with status (pending/approved/rejected).
+    """
+    leaves = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.staff_id == staff_id
+    ).order_by(models.LeaveRequest.leave_date.desc()).all()
+    return [
+        {
+            "id":         l.id,
+            "leave_date": l.leave_date.strftime("%Y-%m-%d"),
+            "reason":     l.reason or "",
+            "status":     l.status or "pending",
+            "created_at": l.created_at.strftime("%Y-%m-%d")
+                          if l.created_at else "",
+        }
+        for l in leaves
+    ]
+
+@app.get("/employee/{staff_id}/schedule", tags=["Employee"])
+def employee_schedule(
+    staff_id: int,
+    db:       Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    """
+    NEW: Returns weekly schedule for a specific staff member.
+    """
+    rows  = db.query(models.StaffSchedule).filter(
+        models.StaffSchedule.staff_id == staff_id).all()
+    names = ["Monday","Tuesday","Wednesday",
+             "Thursday","Friday","Saturday","Sunday"]
+    return [
+        {
+            "day_of_week": r.day_of_week,
+            "day_name":    names[r.day_of_week],
+            "is_working":  r.is_working,
+        }
+        for r in rows
+    ]
 
 # ══════════════════════════════════════════════
 #  SALON SCHEDULE — WEEKLY
@@ -1352,7 +1736,7 @@ def get_salon_schedule(
         for d in range(7)
     ]
 
-@app.post("/schedule/salon", tags=["Salon Schedule"])
+@app.put("/schedule/salon", tags=["Salon Schedule"])
 def save_salon_schedule(
     payload: WeeklyScheduleUpdate,
     db: Session = Depends(get_db),
@@ -1375,6 +1759,15 @@ def save_salon_schedule(
             ))
     db.commit()
     return {"message": "Weekly schedule saved"}
+
+# ── Keep POST for backward compat ──
+@app.post("/schedule/salon", tags=["Salon Schedule"])
+def save_salon_schedule_post(
+    payload: WeeklyScheduleUpdate,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    return save_salon_schedule(payload, db)
 
 # ══════════════════════════════════════════════
 #  SALON SCHEDULE — SPECIAL DAYS
@@ -1400,19 +1793,16 @@ def add_special_day(
     except ValueError:
         raise HTTPException(400, "Use YYYY-MM-DD")
 
-    # Max 1 year ahead
     if sd.date() > (datetime.utcnow() + timedelta(days=365)).date():
         raise HTTPException(
             400, "Cannot add special day more than 1 year ahead")
 
-    # Check duplicate
     if db.query(models.SpecialDay).filter(
         func.date(models.SpecialDay.date) == sd.date()
     ).first():
         raise HTTPException(
             400, "A special day already exists for this date")
 
-    # Validate open time if is_open
     if payload.is_open and (
         not payload.open_time or not payload.close_time
     ):
@@ -1428,7 +1818,6 @@ def add_special_day(
     )
     db.add(new_sd); db.flush()
 
-    # Attach staff
     if payload.is_open and payload.staff_ids:
         for staff_id in payload.staff_ids:
             s = db.query(models.Staff).filter(
@@ -1436,7 +1825,6 @@ def add_special_day(
             if s:
                 new_sd.staff.append(s)
 
-    # Check affected appointments if closing a normally open day
     affected = []
     if not payload.is_open:
         affected = db.query(models.Appointment).filter(
@@ -1493,8 +1881,23 @@ def _fmt_special(s: models.SpecialDay) -> dict:
     }
 
 # ══════════════════════════════════════════════
-#  GENERAL SETTINGS (buffer + specialty mapping)
+#  SETTINGS
 # ══════════════════════════════════════════════
+
+@app.get("/settings/roles", tags=["Settings"])
+def get_available_roles(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    """
+    Returns list of available staff roles from specialty mapping.
+    Frontend uses this to populate role dropdown.
+    """
+    s = get_or_create_settings(db)
+    mapping = json.loads(s.specialty_mapping)
+    return {
+        "roles": list(mapping.keys())
+    }
 
 @app.get("/settings", tags=["Settings"])
 def get_settings(
@@ -1531,7 +1934,7 @@ def update_settings(
     }
 
 # ══════════════════════════════════════════════
-#  DASHBOARD
+#  DASHBOARD ANALYTICS
 # ══════════════════════════════════════════════
 
 @app.get("/analytics/dashboard", tags=["Reports"])
@@ -1539,21 +1942,21 @@ def get_dashboard(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    revenue = db.query(
+    revenue     = db.query(
         func.sum(models.Sale.total_amount)).scalar() or 0
     sales_count = db.query(
         func.count(models.Sale.id)).scalar() or 0
-    low_stock = db.query(
+    low_stock   = db.query(
         func.count(models.Product.id)
     ).filter(models.Product.stock_quantity < 5).scalar() or 0
     staff_count = db.query(
         func.count(models.Staff.id)
     ).filter(models.Staff.is_active == True).scalar() or 0
-    svc_count = db.query(
+    svc_count   = db.query(
         func.count(models.Service.id)
     ).filter(models.Service.is_active == True).scalar() or 0
 
-    today = datetime.utcnow().date()
+    today        = datetime.utcnow().date()
     todays_appts = db.query(
         func.count(models.Appointment.id)
     ).filter(
